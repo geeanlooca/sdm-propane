@@ -1,3 +1,4 @@
+
 import numpy as np 
 import scipy.linalg
 import time 
@@ -7,7 +8,7 @@ import os
 import raman_linear_coupling
 
 
-def test_propagate():
+def test_propagate(fiber_length):
     fiber_length = 100e3
     correlation_length = 1
     dz = correlation_length / 10
@@ -60,42 +61,16 @@ def test_propagate():
     print("A shape:", Ap.shape)
 
 
-def test_matrix_exponential():
 
-    size = 5
-    A = 1 * np.random.randint(-1, 1, (3, 3)).astype("float64")
-    # A = np.random.randn(3, 3)
-    A = A + A.T
-    w, v = np.linalg.eig(A)
-    expA = scipy.linalg.expm(A)
+def say_hi(name):
+    print("Hi " + name)
+    time.sleep(2)
 
-    # scale and square method
-    N = 10
-    Asmall = A / (2 ** N)
-    acc = 10
+import multiprocessing
+cpu_num = multiprocessing.cpu_count()
 
-    fact = 1
-    tmp = np.eye(3)
-    Apow = np.copy(Asmall)
+with multiprocessing.Pool(cpu_num) as pool:
+    pool.map(test_propagate, 2 * cpu_num * [10] )
 
-    for i in range(1, acc+1):
-        fact *= i
-        tmp += (Apow) / fact
-        Apow = np.matmul(Apow, Asmall)
-        
-
-    expB = np.copy(tmp)
-    for i in range(N):
-        expB = np.matmul(expB, expB)
-
-
-    expB = raman_linear_coupling.expm(A)
-
-
-    print(np.max(np.abs(expA-expB)))
-    print(expA)
-    print(expB)
-    print(np.max(np.abs(expA-expB)/expB))
-
-
-
+pool.join()
+    

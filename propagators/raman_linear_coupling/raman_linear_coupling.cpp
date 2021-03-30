@@ -12,6 +12,80 @@
 
 namespace py = pybind11;
 
+void _expm(double *_A, double *_result, int n)
+{
+
+    // initialize to 0
+
+    int N = 5;
+    int power_terms = 10;
+    
+    double scaling = 1.0 / pow(2, N);
+    double *_A_scaled = (double*) mkl_malloc(n * n * sizeof(double), 64);
+    double *_A_power = (double*) mkl_malloc(n * n * sizeof(double), 64);
+    double *_A_power2 = (double*) mkl_malloc(n * n * sizeof(double), 64);
+    double *_scaled_power = (double*) mkl_malloc(n * n * sizeof(double), 64);
+    double* m_exp1 = (double*)mkl_malloc(n * n * sizeof(double), 64);
+	double* m_exp2 = (double*)mkl_malloc(n * n * sizeof(double), 64);
+
+    cblas_dcopy(n * n, _A, 1, _A_scaled, 1);
+    cblas_dscal(n * n, scaling, _A_scaled, 1);
+    cblas_dcopy(n * n, _A_scaled, 1, _A_power, 1);
+    cblas_dscal(n * n, 0, _result, 1);
+
+    int factorial = 1;
+    for (int i = 1; i < power_terms; i++)
+    {
+        // add the new term of the power series
+        factorial *= i;
+        cblas_dcopy(n * n, _A_power, 1, _scaled_power, 1);
+        cblas_dscal(n * n, 1.0 / factorial, _scaled_power, 1);
+        vdAdd(n * n, _result, _scaled_power, _result);
+
+        // A_power contains the (i+1)-th power of the initial scaled matrix
+        cblas_dcopy(n * n, _A_power, 1, _A_power2, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
+            n, n, n, 1.0, _A_power2, n, _A_scaled, n, 0, _A_power, n);
+    }
+
+    // sum 1 to the diagonal (first term of the power series is the identity)
+    for (int i = 0; i < n * n; i+= (n + 1))
+    {
+        _result[i] += 1;
+    }
+
+    for (int i = 0; i < N; i++)
+    {
+        cblas_dcopy(n * n, _result, 1, m_exp1, 1);
+        cblas_dcopy(n * n, _result, 1, m_exp2, 1);
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
+            n, n, n, 1.0, m_exp1, n, m_exp2, n, 0, _result, n);
+    }
+
+
+    mkl_free(_A_scaled);
+    mkl_free(_A_power);
+    mkl_free(_A_power2);
+    mkl_free(_scaled_power);
+    mkl_free(m_exp1);
+    mkl_free(m_exp2);
+}
+
+py::array_t<double> expm(py::array_t<double> A)
+{
+    py::buffer_info buf_info = A.request();
+    int n = buf_info.shape[0];
+    int m = buf_info.shape[1];
+
+    py::array_t<double> result = py::array_t<double>( n * n);
+    double *_result = (double *)result.request().ptr;
+    double *_A = (double *)buf_info.ptr;
+
+    _expm(_A, _result, n);
+    result.resize({n, n});
+    return result;
+}
+
 int get_linear_index(int row, int col, int cols)
 {
     return col + row * cols;
@@ -30,6 +104,25 @@ void random_normal(int size)
     vslNewStream(&stream, VSL_BRNG_MT19937, dsecnd());
 
     vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, size, buf_R, 0, 1);
+}
+
+void RKRt(double *K, double *R, double *RKRt, int n)
+{
+
+    double *KRt = (double*)mkl_malloc(n * n * sizeof(double), 64);
+    cblas_dgemm(CblasRowMajor,
+                CblasNoTrans, CblasTrans,
+                n, n, n,
+                1, K, n, R, n,
+                0, KRt, n);
+
+    cblas_dgemm(CblasRowMajor,
+                CblasNoTrans, CblasNoTrans,
+                n, n, n,
+                1, R, n, KRt, n,
+                0, RKRt, n);
+
+    mkl_free(KRt);
 }
 
 void _perturbation_rotation_matrix(double *buf_R, double theta, int *indices, int num_groups, int num_modes)
@@ -97,6 +190,9 @@ py::tuple integrate(
     py::array_t<double> beta_s,
     py::array_t<double> beta_p)
 {
+    int procs = 4;
+    mkl_set_num_threads(procs);
+    mkl_set_dynamic(1);
 
     double dz = stepsize;
 
@@ -115,6 +211,7 @@ py::tuple integrate(
     double sigma = 1 / correlation_length;
     py::array_t<double> thetas_array = py::array_t<double>(step_count);
     double *thetas = (double *)thetas_array.request().ptr;
+
     VSLStreamStatePtr stream;
     vslNewStream(&stream, VSL_BRNG_MT19937, dsecnd());
     vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, step_count, thetas, 0, 1);
@@ -146,6 +243,8 @@ py::tuple integrate(
 
     double *Ks_theta = (double *)mkl_calloc(num_modes_s * num_modes_s, sizeof(double), 64);
     double *Kp_theta = (double *)mkl_calloc(num_modes_p * num_modes_p, sizeof(double), 64);
+    double *expMs = (double *)mkl_calloc(num_modes_s * num_modes_s, sizeof(double), 64);
+    double *expMp = (double *)mkl_calloc(num_modes_p * num_modes_p, sizeof(double), 64);
 
     // get the pointers to attenuation and prop. constants
     double *_alpha_s = (double *)alpha_s.request().ptr;
@@ -176,33 +275,11 @@ py::tuple integrate(
 
         // apply the rotation to the coupling matrix
         // R * K * R^T
-        // Let B = K * R^T, store result in K_theta
-        // Then compute R*B, store result in K_theta
         // First for the pump frequencies
-        cblas_dgemm(CblasRowMajor,
-                    CblasNoTrans, CblasTrans,
-                    num_modes_p, num_modes_p, num_modes_p,
-                    1, Kp, num_modes_p, Rp, num_modes_p,
-                    0, Kp_theta, num_modes_p);
-
-        cblas_dgemm(CblasRowMajor,
-                    CblasNoTrans, CblasNoTrans,
-                    num_modes_p, num_modes_p, num_modes_p,
-                    1, Rp, num_modes_p, Kp_theta, num_modes_p,
-                    0, Kp_theta, num_modes_p);
+        RKRt(Kp, Rp, Kp_theta, num_modes_p);
 
         // Then for the signal frequencies
-        cblas_dgemm(CblasRowMajor,
-                    CblasNoTrans, CblasTrans,
-                    num_modes_s, num_modes_s, num_modes_s,
-                    1, Ks, num_modes_s, Rs, num_modes_s,
-                    0, Ks_theta, num_modes_s);
-
-        cblas_dgemm(CblasRowMajor,
-                    CblasNoTrans, CblasNoTrans,
-                    num_modes_s, num_modes_s, num_modes_s,
-                    1, Rs, num_modes_s, Ks_theta, num_modes_s,
-                    0, Ks_theta, num_modes_s);
+        RKRt(Ks, Rs, Ks_theta, num_modes_s);
 
         // add the ideal propagation constants and the
         // fiber losses to the diagonals
@@ -212,6 +289,23 @@ py::tuple integrate(
             Kp_theta[get_linear_index(i, i, num_modes_p)] += (_beta_p[i] + _alpha_p[i]);
 
         // compute the matrix exponential
+        _expm(Kp_theta, expMp, num_modes_p);
+        _expm(Ks_theta, expMs, num_modes_s);
+
+        double *y0 = &_Ap[(iteration-1) * num_modes_p];
+        double *y = &_Ap[iteration * num_modes_p];
+
+        // compute the new field amplitudes after linear propagation
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, num_modes_p, num_modes_p, 1.0, 
+            expMp, num_modes_p, y0, 1, 0, y, 1);
+
+        y0 = &_As[(iteration-1) * num_modes_s];
+        y = &_As[iteration * num_modes_s];
+
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, num_modes_s, num_modes_s, 1.0, 
+            expMs, num_modes_s, y0, 1, 0, y, 1);
+
+
 
         // Compute the nonlinear part of the equation
 
@@ -220,7 +314,7 @@ py::tuple integrate(
                 for (size_t m3 = 0; m3 < num_modes_s; m3++)
                     for (size_t m4 = 0; m4 < num_modes_s; m4++)
                     {
-                        _As[iteration * num_groups_s + m1] = m2 * m3 * m4;
+                        _As[iteration * num_groups_s + m1] += m2 * m3 * m4;
                     }
 
         for (size_t m1 = 0; m1 < num_modes_p; m1++)
@@ -228,7 +322,7 @@ py::tuple integrate(
                 for (size_t m3 = 0; m3 < num_modes_p; m3++)
                     for (size_t m4 = 0; m4 < num_modes_p; m4++)
                     {
-                        _Ap[iteration * num_modes_p + m1] = m2 * m3 * m4;
+                        _Ap[iteration * num_modes_p + m1] += m2 * m3 * m4;
                     }
     }
 
@@ -238,11 +332,15 @@ py::tuple integrate(
     mkl_free(Ks_theta);
     mkl_free(Rs);
     mkl_free(Rp);
+    mkl_free(expMs);
+    mkl_free(expMp);
 
     return py::make_tuple(z, thetas_array, Ap, As);
 }
 
+
 PYBIND11_MODULE(raman_linear_coupling, m)
 {
     m.def("propagate", &integrate, "Propagator for Raman equations with linear coupling.");
+    m.def("expm", &expm);
 }
