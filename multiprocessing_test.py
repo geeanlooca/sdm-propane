@@ -8,8 +8,8 @@ import os
 import raman_linear_coupling
 
 
-def test_propagate(fiber_length):
-    fiber_length = 100e3
+def test_propagate(_):
+    fiber_length = 1e3
     correlation_length = 1
     dz = correlation_length / 10
     indices_s = np.array([0, 1, 0, 1]).astype("int32")
@@ -49,16 +49,8 @@ def test_propagate(fiber_length):
         beta_p,
     )
     end = time.perf_counter()
-    print("Time: ", (end - start))
-    assert z[-1] == fiber_length
-    assert z[1] - z[0] == dz
-    assert Ap.shape[0] == num_modes_p
-    assert As.shape[0] == num_modes_s
-    assert Ap.shape[1] == len(z)
-    assert len(thetas) == len(z)
-    print("Number of steps:", len(z))
-    print("Number of modes:", num_modes_s, num_modes_p)
-    print("A shape:", Ap.shape)
+
+    return z, thetas
 
 
 
@@ -70,7 +62,16 @@ import multiprocessing
 cpu_num = multiprocessing.cpu_count()
 
 with multiprocessing.Pool(cpu_num) as pool:
-    pool.map(test_propagate, 2 * cpu_num * [10] )
+    results = pool.map(test_propagate, 2 * cpu_num * [None] )
 
 pool.join()
+
+import matplotlib.pyplot as plt
+
+plt.figure()
+
+for (z, theta) in results:
+    plt.plot(z, theta)
+
+plt.show()
     

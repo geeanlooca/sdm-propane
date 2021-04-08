@@ -2,104 +2,26 @@
 #include <pybind11/numpy.h>
 // #include <math.h>
 #include <cmath>
-#include "mkl.h"
-#include "mkl_vml.h"
-#include "mkl_vsl.h"
-#include "mkl_lapacke.h"
+#include <math.h>
 #include <chrono>
 #include <cstdlib>
 #include <cstdio>
 #include <complex.h>
+#include <string>
 
-#define MKL_Complex16 std::complex<double>
+#ifndef MKL_Complex16
+    #define MKL_Complex16 std::complex<double>
+#endif
+
+#include "mkl.h"
+#include "mkl_vml.h"
+#include "mkl_vsl.h"
+#include "mkl_lapacke.h"
+#include "matrix_exponential.h"
 
 
 namespace py = pybind11;
 
-void _expm(MKL_Complex16 *_A, MKL_Complex16 *_result, int n, int N, int power_terms)
-{
-
-    // initialize to 0
-
-    // int N = 5;
-    // int power_terms = 10;
-
-    MKL_Complex16 scaling = 1.0 / pow(2, N);
-    MKL_Complex16 one = 1;
-    MKL_Complex16 zero = 0;
-
-    MKL_Complex16* _A_scaled = (MKL_Complex16*) mkl_malloc(n * n * sizeof(MKL_Complex16), 64);
-    MKL_Complex16* _A_power = (MKL_Complex16*) mkl_malloc(n * n * sizeof(MKL_Complex16), 64);
-    MKL_Complex16* _A_power2 = (MKL_Complex16*) mkl_malloc(n * n * sizeof(MKL_Complex16), 64);
-    MKL_Complex16* _scaled_power = (MKL_Complex16*) mkl_malloc(n * n * sizeof(MKL_Complex16), 64);
-    MKL_Complex16* m_exp1 = (MKL_Complex16*)mkl_malloc(n * n * sizeof(MKL_Complex16), 64);
-	MKL_Complex16* m_exp2 = (MKL_Complex16*)mkl_malloc(n * n * sizeof(MKL_Complex16), 64);
-
-    cblas_zcopy(n * n, _A, 1, _A_scaled, 1);
-    cblas_zscal(n * n, (void*) &scaling, _A_scaled, 1);
-
-    cblas_zcopy(n * n, _A_scaled, 1, _A_power, 1);
-    cblas_zscal(n * n, (void*) &zero, _result, 1);
-
-    int factorial = 1;
-    for (int i = 1; i < power_terms; i++)
-    {
-        // add the new term of the power series
-        factorial *= i;
-        MKL_Complex16 fact_scaling = 1.0/factorial;
-        cblas_zcopy(n * n, _A_power, 1, _scaled_power, 1);
-
-        cblas_zscal(n * n, (void*) (void*) &fact_scaling, _scaled_power, 1);
-
-        vdAdd(2 * n * n, 
-            (double*) &(_result[0]),
-            (double *) &(_scaled_power[0]),
-            (double*) &(_result[0]));
-
-
-        // A_power contains the (i+1)-th power of the initial scaled matrix
-        cblas_zcopy(n * n, _A_power, 1, _A_power2, 1);
-        cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
-            n, n, n, (void*)&one, _A_power2, n, _A_scaled, n, (void*) &zero, _A_power, n);
-    }
-
-    // sum 1 to the diagonal (first term of the power series is the identity)
-    for (int i = 0; i < n * n; i+= (n + 1))
-    {
-        _result[i] += 1;
-    }
-
-    for (int i = 0; i < N; i++)
-    {
-        cblas_zcopy(n * n, _result, 1, m_exp1, 1);
-        cblas_zcopy(n * n, _result, 1, m_exp2, 1);
-        cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
-            n, n, n, (void*) &one, m_exp1, n, m_exp2, n, (void *)&zero, _result, n);
-    }
-
-
-    mkl_free(_A_scaled);
-    mkl_free(_A_power);
-    mkl_free(_A_power2);
-    mkl_free(_scaled_power);
-    mkl_free(m_exp1);
-    mkl_free(m_exp2);
-}
-
-py::array_t<MKL_Complex16> expm(py::array_t<MKL_Complex16> A, int N, int power_terms)
-{
-    py::buffer_info buf_info = A.request();
-    int n = buf_info.shape[0];
-    int m = buf_info.shape[1];
-
-    py::array_t<MKL_Complex16> result = py::array_t<MKL_Complex16>( n * n);
-    MKL_Complex16 *_result = (MKL_Complex16 *)result.request().ptr;
-    MKL_Complex16 *_A = (MKL_Complex16 *)buf_info.ptr;
-
-    _expm(_A, _result, n, N, power_terms);
-    result.resize({n, n});
-    return result;
-}
 
 int get_linear_index(int row, int col, int cols)
 {
@@ -200,6 +122,34 @@ void apply_linear_operator(MKL_Complex16 *y, MKL_Complex16 *y0, MKL_Complex16 *M
         M, num_modes, y0, 1, (void*) &zero, y, 1);
 }
 
+
+void print_matrix(double *A, int rows, int cols)
+{
+
+    for (size_t i = 0; i < rows; i++)
+    {
+        for (size_t j = 0; j < cols; j++)
+        {
+            printf("%f\t", A[i *  rows + j]);
+        }
+        printf("\n");
+    }
+}
+
+void print_matrix_complex(MKL_Complex16 *A, int rows, int cols)
+{
+
+    for (size_t i = 0; i < rows; i++)
+    {
+        for (size_t j = 0; j < cols; j++)
+        {
+            MKL_Complex16 a = A[i *  rows + j];
+            printf("%f+j%f\t", a.real(), a.imag());
+        }
+        printf("\n");
+    }
+}
+
 void apply_nonlinear_operator(MKL_Complex16 *y, int num_modes)
 {
     for (size_t m1 = 0; m1 < num_modes; m1++)
@@ -209,6 +159,12 @@ void apply_nonlinear_operator(MKL_Complex16 *y, int num_modes)
                 {
                     y[m1] += m2 * m3 * m4;
                 }
+}
+
+void apply_losses(MKL_Complex16 *y, double loss_coefficient, double dz, int num_modes)
+{
+    MKL_Complex16 scaling = exp(-loss_coefficient / 2 * dz);
+    cblas_zscal(num_modes, (void *) &scaling, y, 1);
 }
 
 void compute_linear_operator(double *alpha, double *beta, double *K, MKL_Complex16 *totalK, MKL_Complex16 *expM, int num_modes, double dz)
@@ -227,9 +183,54 @@ void compute_linear_operator(double *alpha, double *beta, double *K, MKL_Complex
     _expm(totalK, expM, num_modes, 5, 10);
 }
 
+void compute_linear_operator_eigenvals(double *beta, double *K, MKL_Complex16 *expM, int num_modes, double dz)
+{
+    int n = num_modes;
+
+    // 1) first get the eigen-decomposition of the input symmetric matrix
+    // A = MDM^T (this is valid for symmetric matrices)
+    double* eigenvals = (double*) mkl_malloc(n * sizeof(double), 64);
+    double* eigenvectors = (double*) mkl_malloc(n * n * sizeof(double), 64);
+    MKL_Complex16* eigenvectors_complex = (MKL_Complex16*) mkl_calloc(n * n, sizeof(MKL_Complex16), 64);
+    MKL_Complex16* D = (MKL_Complex16 *) mkl_calloc(n  * n, sizeof(MKL_Complex16), 64);
+    MKL_Complex16* intermediate = (MKL_Complex16*) mkl_calloc(n * n,  sizeof(MKL_Complex16), 64);
+
+    // copy the matrix in the eigenvectors matrix otherwise it will be overwritten
+    cblas_dcopy(n * n, K, 1, eigenvectors, 1);
+    LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', n, eigenvectors, n, eigenvals);
+
+    // copy the eigenvectors to the real part of a complex matrix of the same size
+    cblas_dcopy(n * n, eigenvectors, 1, (double*) &(eigenvectors_complex[0]), 2);
+
+    // 2) compute M * e^d * M^T
+    // make sure the expA matrix is set to 0 first
+    // cblas_dscal(2 * n * n, 0, (double *) &(expM[0]), 1);
+
+    // a) take the exponent of the diagonal entries
+    for (size_t i = 0, j=0; i < n * n; i += (n+1), j++)
+        D[i] = std::exp( std::complex<double>(0, dz * eigenvals[j]) );
+
+    MKL_Complex16 one = 1;
+    MKL_Complex16 zero = 0;
+    
+    // b) Compute B = e^d * M^T
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans , 
+        n, n, n, &one, D, n, eigenvectors_complex, n, &zero, intermediate, n);
+
+    // c) compute E = M * B
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 
+        n, n, n, &one, eigenvectors_complex, n, intermediate, n, &zero, expM, n);
+
+
+    mkl_free(eigenvectors);
+    mkl_free(eigenvectors_complex);
+    mkl_free(eigenvals);
+    mkl_free(D);
+    mkl_free(intermediate);
+}
+
 py::array_t<double> perturbation_rotation_matrix(double theta, py::array_t<int> indices)
 {
-
     int num_modes = 0;
     int *indices_buf = (int*) indices.request().ptr;
     int num_groups = indices.request().shape[0];
@@ -247,6 +248,39 @@ py::array_t<double> perturbation_rotation_matrix(double theta, py::array_t<int> 
     return R;
 }
 
+void compute_perturbation_angles(double correlation_length, double dz, int step_count, double* buffer)
+{
+    double sigma = 1 / sqrt((2 * correlation_length));
+
+    unsigned MKL_INT64 seed;
+    mkl_get_cpu_clocks(&seed);
+    VSLStreamStatePtr stream;
+    vslNewStream(&stream, VSL_BRNG_MT19937, seed);
+    vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, step_count, buffer, 0, 1);
+
+    double theta0[1];
+    vdRngUniform(VSL_RNG_METHOD_UNIFORM_STD, stream, 1,theta0, 0, 2 * M_PI);
+
+    // TODO: buffer[0] = i.i.d -> U(0, 2pi)
+    buffer[0] = theta0[0];
+
+    for (size_t iteration = 1; iteration < step_count; iteration++)
+    {
+        double dtheta = sqrt(dz) * sigma * buffer[iteration];
+        double new_theta = buffer[iteration - 1] + dtheta;
+        buffer[iteration] = new_theta;
+    }
+}
+
+py::array_t<double> thetas(double correlation_length, double dz, int step_count)
+{
+    py::array_t<double> theta = py::array_t<double>(step_count);
+    double *buff = (double *) theta.request().ptr;
+    compute_perturbation_angles(correlation_length, dz, step_count, buff);
+
+    return theta;
+}
+
 py::tuple integrate(
     py::array_t<MKL_Complex16> A_s,
     py::array_t<MKL_Complex16> A_p,
@@ -257,8 +291,8 @@ py::tuple integrate(
     double correlation_length,
     py::array_t<double> K_s,
     py::array_t<double> K_p,
-    py::array_t<double> alpha_s,
-    py::array_t<double> alpha_p,
+    double alpha_s,
+    double alpha_p,
     py::array_t<double> beta_s,
     py::array_t<double> beta_p)
 {
@@ -280,15 +314,9 @@ py::tuple integrate(
 
     // generate a vector of iid normal random variables
     // it contains the value of the angle of the perturbation at each step
-    double sigma = sqrt(1 / (2 * correlation_length));
     py::array_t<double> thetas_array = py::array_t<double>(step_count);
     double *thetas = (double *)thetas_array.request().ptr;
-
-
-    VSLStreamStatePtr stream;
-    vslNewStream(&stream, VSL_BRNG_MT19937, dsecnd());
-    vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, step_count, thetas, 0, 1);
-    thetas[0] *= sigma;
+    compute_perturbation_angles(correlation_length, dz, step_count, thetas);
 
     py::buffer_info indices_buf_info_s = indices_s.request();
     int *indices_buf_s = (int *)indices_buf_info_s.ptr;
@@ -322,8 +350,6 @@ py::tuple integrate(
     MKL_Complex16 *expMp = (MKL_Complex16 *)mkl_calloc(num_modes_p * num_modes_p, sizeof(MKL_Complex16), 64);
 
     // get the pointers to attenuation and prop. constants
-    double *_alpha_s = (double *)alpha_s.request().ptr;
-    double *_alpha_p = (double *)alpha_p.request().ptr;
     double *_beta_s = (double *)beta_s.request().ptr;
     double *_beta_p = (double *)beta_p.request().ptr;
 
@@ -345,43 +371,36 @@ py::tuple integrate(
         identity_p[i] = 1; 
     for (size_t i = 0; i < num_modes_s * num_modes_s; i += (num_modes_s+1))
         identity_s[i] = 1; 
-    
-
 
     for (size_t iteration = 1; iteration < step_count; iteration++)
     {
-        // draw the new normal random variable
-        // and update the perturbation angle according to the
-        // constant modulus model
-        double dtheta = sigma * thetas[iteration];
-        double new_theta = thetas[iteration - 1] - dz * dtheta;
-        // store the updated perturbation angle
-        thetas[iteration] = new_theta;
+        double theta = thetas[iteration-1];
 
         // compute the perturbation rotation matrices for the two frequencies
-        // TODO: optimize by checking if the number of modes is the same: in that case, only compute one matrix
-        _perturbation_rotation_matrix(Rs, new_theta, indices_buf_s, num_groups_s, num_modes_s);
-        _perturbation_rotation_matrix(Rp, new_theta, indices_buf_p, num_groups_p, num_modes_p);
+        _perturbation_rotation_matrix(Rs, theta, indices_buf_s, num_groups_s, num_modes_s);
+        _perturbation_rotation_matrix(Rp, theta, indices_buf_p, num_groups_p, num_modes_p);
 
         // apply the rotation to the coupling matrix: compute R * K * R^T
-        RKRt(Kp, identity_p, Kp_theta, num_modes_p);
-        RKRt(Ks, identity_s, Ks_theta, num_modes_s);
+        RKRt(Kp, Rp, Kp_theta, num_modes_p);
+        RKRt(Ks, Rs, Ks_theta, num_modes_s);
 
-        compute_linear_operator(_alpha_p, _beta_p, Kp_theta, Ktotal_p, expMp, num_modes_p, dz);
-        compute_linear_operator(_alpha_s, _beta_s, Ks_theta, Ktotal_s, expMs, num_modes_s, dz);
-        
+        compute_linear_operator_eigenvals(_beta_p, Kp_theta, expMp, num_modes_p, dz);
+        compute_linear_operator_eigenvals(_beta_s, Ks_theta, expMs, num_modes_s, dz);
 
         // compute the new field amplitudes after linear propagation
-        MKL_Complex16 *y0 = &_Ap[(iteration-1) * num_modes_p];
-        MKL_Complex16 *y = &_Ap[iteration * num_modes_p];
-        apply_linear_operator(y, y0, expMp, num_modes_p);
+        MKL_Complex16 *y0p = &_Ap[(iteration-1) * num_modes_p];
+        MKL_Complex16 *yp = &_Ap[iteration * num_modes_p];
+        MKL_Complex16 *y0s = &_As[(iteration-1) * num_modes_s];
+        MKL_Complex16 *ys = &_As[iteration * num_modes_s];
 
-        y0 = &_As[(iteration-1) * num_modes_s];
-        y = &_As[iteration * num_modes_s];
-        apply_linear_operator(y, y0, expMs, num_modes_s);
+        apply_linear_operator(yp, y0p, expMp, num_modes_p);
+        apply_linear_operator(ys, y0s, expMs, num_modes_s);
 
-        // apply_nonlinear_operator( &_Ap[iteration * num_modes_p], num_modes_p);
-        // apply_nonlinear_operator( &_As[iteration * num_modes_s], num_modes_s);
+        // apply_nonlinear_operator( y0p, num_modes_p);
+        // apply_nonlinear_operator( y0s, num_modes_s);
+
+        apply_losses(yp, alpha_p, dz, num_modes_p);
+        apply_losses(ys, alpha_s, dz, num_modes_s);
     }
 
     // free allocated heap memory
@@ -395,41 +414,15 @@ py::tuple integrate(
     mkl_free(expMp);
 
     Ap.resize({step_count, num_modes_p});
-    As.resize({step_count, num_modes_s });
+    As.resize({step_count, num_modes_s});
 
     return py::make_tuple(z, thetas_array, Ap, As);
-}
-
-py::array_t<std::complex<double>> sumComplex(py::array_t<double> alpha, py::array_t<double> beta, py::array_t<double> K)
-{
-    py::buffer_info buf_info = alpha.request();
-    int n = buf_info.shape[0];
-
-    double *_alpha = (double*) alpha.request().ptr;
-    double *_beta = (double*) beta.request().ptr;
-    double *_K = (double*) K.request().ptr;
-
-
-    py::array_t<std::complex<double>> result = py::array_t<std::complex<double>>( n * n);
-    MKL_Complex16 *_result = (MKL_Complex16*)result.request().ptr;
-
-    cblas_dcopy(n * n, _K, 1, (double *) &(_result[0]), 2);
-    cblas_dcopy(n * n, _K, 1, (double *) &(_result[0]) + 1, 2);
-    for (int i = 0, j = 0; i < n * n; i+= (n+1), j++)
-    {
-        printf("Alpha: %f\tBeta: %f\n", _alpha[j], _beta[j]);
-        _result[i] += std::complex<double>(-_alpha[j], _beta[j]);
-    }
-
-    result.resize({n, n});
-    return result;
 }
 
 
 PYBIND11_MODULE(raman_linear_coupling, m)
 {
     m.def("propagate", &integrate, "Propagator for Raman equations with linear coupling.");
-    m.def("expm", &expm);
-    m.def("sumComplex", &sumComplex);
     m.def("perturbation_rotation_matrix", &perturbation_rotation_matrix);
+    m.def("theta", &thetas);
 }
