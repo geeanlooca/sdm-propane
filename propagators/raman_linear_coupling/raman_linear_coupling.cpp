@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 // #include <math.h>
 #include <cmath>
 #include <math.h>
@@ -21,6 +22,9 @@
 
 
 namespace py = pybind11;
+
+#define C0 299792458.0
+#define E0 8.8541878128e-12
 
 
 int get_linear_index(int row, int col, int cols)
@@ -150,16 +154,20 @@ void print_matrix_complex(MKL_Complex16 *A, int rows, int cols)
     }
 }
 
-void apply_nonlinear_operator(MKL_Complex16 *y, int num_modes)
-{
-    for (size_t m1 = 0; m1 < num_modes; m1++)
-        for (size_t m2 = 0; m2 < num_modes; m2++)
-            for (size_t m3 = 0; m3 < num_modes; m3++)
-                for (size_t m4 = 0; m4 < num_modes; m4++)
-                {
-                    y[m1] += m2 * m3 * m4;
-                }
-}
+// void apply_nonlinear_operator(MKL_Complex16 *y, double double *Q, double coefficient, double frequency, int num_modes, int dz)
+// {
+//     for (size_t m1 = 0; m1 < num_modes; m1++)
+//     {
+//         for (size_t m2 = 0; m2 < num_modes; m2++)
+//             for (size_t m3 = 0; m3 < num_modes; m3++)
+//                 for (size_t m4 = 0; m4 < num_modes; m4++)
+//                 {
+//                     y[m1] += Q[num_modes * m1]
+//                 }
+
+//         y[m1] *= 1/4 * (std::complex(0, 1) * 2 * M_PI * frequency) * coefficient
+//     }
+// }
 
 void apply_losses(MKL_Complex16 *y, double loss_coefficient, double dz, int num_modes)
 {
@@ -248,14 +256,19 @@ py::array_t<double> perturbation_rotation_matrix(double theta, py::array_t<int> 
     return R;
 }
 
-void compute_perturbation_angles(double correlation_length, double dz, int step_count, double* buffer)
+void compute_perturbation_angles(double correlation_length, double dz, int step_count, double* buffer, std::optional<unsigned MKL_INT64> seed = NULL)
 {
     double sigma = 1 / sqrt((2 * correlation_length));
 
-    unsigned MKL_INT64 seed;
-    mkl_get_cpu_clocks(&seed);
+    unsigned MKL_INT64 seed_;
+
+    if (!seed.has_value())
+        mkl_get_cpu_clocks(&seed_);
+    else
+        seed_ = seed.value();
+
     VSLStreamStatePtr stream;
-    vslNewStream(&stream, VSL_BRNG_MT19937, seed);
+    vslNewStream(&stream, VSL_BRNG_MT19937, seed_);
     vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, step_count, buffer, 0, 1);
 
     double theta0[1];
@@ -294,14 +307,14 @@ py::tuple integrate(
     double alpha_s,
     double alpha_p,
     py::array_t<double> beta_s,
-    py::array_t<double> beta_p)
+    py::array_t<double> beta_p,
+    std::optional<int> seed)
 {
     int procs = 4;
     mkl_set_num_threads(procs);
     mkl_set_dynamic(1);
 
     double dz = stepsize;
-
     int step_count = fiber_length / stepsize + 1;
 
     py::array_t<double> z = py::array_t<double>(step_count);
@@ -314,9 +327,11 @@ py::tuple integrate(
 
     // generate a vector of iid normal random variables
     // it contains the value of the angle of the perturbation at each step
+
+    
     py::array_t<double> thetas_array = py::array_t<double>(step_count);
     double *thetas = (double *)thetas_array.request().ptr;
-    compute_perturbation_angles(correlation_length, dz, step_count, thetas);
+    compute_perturbation_angles(correlation_length, dz, step_count, thetas, seed);
 
     py::buffer_info indices_buf_info_s = indices_s.request();
     int *indices_buf_s = (int *)indices_buf_info_s.ptr;
@@ -419,10 +434,208 @@ py::tuple integrate(
     return py::make_tuple(z, thetas_array, Ap, As);
 }
 
+// py::tuple nonlinear_propagation(
+//     py::array_t<MKL_Complex16> A_s,
+//     py::array_t<MKL_Complex16> A_p,
+//     double fiber_length,
+//     double stepsize,
+//     py::array_t<int> indices_s,
+//     py::array_t<int> indices_p,
+//     double correlation_length,
+//     py::array_t<double> K_s,
+//     py::array_t<double> K_p,
+//     double alpha_s,
+//     double alpha_p,
+//     py::array_t<double> beta_s,
+//     py::array_t<double> beta_p,
+//     py::array_t<double> Q1_s,
+//     py::array_t<double> Q2_s,
+//     py::array_t<double> Q3_s,
+//     py::array_t<double> Q4_s,
+//     py::array_t<double> Q5_s,
+//     py::array_t<double> Q1_p,
+//     py::array_t<double> Q2_p,
+//     py::array_t<double> Q3_p,
+//     py::array_t<double> Q4_p,
+//     py::array_t<double> Q5_p,
+//     double sigma,
+//     double a0,
+//     double b0,
+//     MKL_Complex16 aW,
+//     MKL_Complex16 bW,
+//     double signal_frequency,
+//     double pump_frequency)
+// // {
+// //     int procs = 4;
+// //     mkl_set_num_threads(procs);
+// //     mkl_set_dynamic(1);
+
+    // double * _Q1_s = (double *) Q1_s.request().ptr;
+    // double * _Q2_s = (double *) Q2_s.request().ptr;
+    // double * _Q3_s = (double *) Q3_s.request().ptr;
+    // double * _Q4_s = (double *) Q4_s.request().ptr;
+    // double * _Q5_s = (double *) Q5_s.request().ptr;
+    // double * _Q1_p = (double *) Q1_p.request().ptr;
+    // double * _Q2_p = (double *) Q2_p.request().ptr;
+    // double * _Q3_p = (double *) Q3_p.request().ptr;
+    // double * _Q4_p = (double *) Q4_p.request().ptr;
+    // double * _Q5_p = (double *) Q5_p.request().ptr;
+
+//     double dz = stepsize;
+
+//     int step_count = fiber_length / stepsize + 1;
+
+//     py::array_t<double> z = py::array_t<double>(step_count);
+//     double *z_buf = (double *)z.request().ptr;
+
+//     for (size_t i = 0; i < step_count; i++)
+//     {
+//         z_buf[i] = i * dz;
+//     }
+
+    // MKL_Complex16 aW_signal = aW;
+    // MKL_Complex16 bW_signal = aW;
+    // MKL_Complex16 aW_pump = std::complex<double>(aW_signal.real(), -aW_signal.imag())
+    // MKL_Complex16 bW_pump = std::complex<double>(bW_signal.real(), -bW_signal.imag())
+
+
+//     // generate a vector of iid normal random variables
+//     // it contains the value of the angle of the perturbation at each step
+//     py::array_t<double> thetas_array = py::array_t<double>(step_count);
+//     double *thetas = (double *)thetas_array.request().ptr;
+//     compute_perturbation_angles(correlation_length, dz, step_count, thetas);
+
+//     py::buffer_info indices_buf_info_s = indices_s.request();
+//     int *indices_buf_s = (int *)indices_buf_info_s.ptr;
+//     int num_groups_s = indices_buf_info_s.size;
+//     int num_modes_s = 0;
+
+//     py::buffer_info indices_buf_info_p = indices_p.request();
+//     int *indices_buf_p = (int *)indices_buf_info_p.ptr;
+//     int num_groups_p = indices_buf_info_p.size;
+//     int num_modes_p = 0;
+
+//     for (size_t i = 0; i < num_groups_s; i++)
+//         num_modes_s += (indices_buf_s[i] > 0) ? 4 : 2;
+
+//     for (size_t i = 0; i < num_groups_p; i++)
+//         num_modes_p += (indices_buf_p[i] > 0) ? 4 : 2;
+
+//     // allocate memory for the rotation matrices
+//     double *Rs = (double *)mkl_calloc(num_modes_s * num_modes_s, sizeof(double), 64);
+//     double *Rp = (double *)mkl_calloc(num_modes_p * num_modes_p, sizeof(double), 64);
+
+//     // get the pointers to the coupling matrices
+//     double *Ks = (double *)K_s.request().ptr;
+//     double *Kp = (double *)K_p.request().ptr;
+
+//     double *Ks_theta = (double *)mkl_calloc(num_modes_s * num_modes_s, sizeof(double), 64);
+//     double *Kp_theta = (double *)mkl_calloc(num_modes_p * num_modes_p, sizeof(double), 64);
+//     MKL_Complex16 *Ktotal_p = (MKL_Complex16 *)mkl_calloc(num_modes_s * num_modes_s, sizeof(MKL_Complex16), 64);
+//     MKL_Complex16 *Ktotal_s = (MKL_Complex16 *)mkl_calloc(num_modes_p * num_modes_p, sizeof(MKL_Complex16), 64);
+//     MKL_Complex16 *expMs = (MKL_Complex16 *)mkl_calloc(num_modes_s * num_modes_s, sizeof(MKL_Complex16), 64);
+//     MKL_Complex16 *expMp = (MKL_Complex16 *)mkl_calloc(num_modes_p * num_modes_p, sizeof(MKL_Complex16), 64);
+
+//     // get the pointers to attenuation and prop. constants
+//     double *_beta_s = (double *)beta_s.request().ptr;
+//     double *_beta_p = (double *)beta_p.request().ptr;
+
+//     // initialize the matrix for storing the evolution of the fields along the fiber
+//     py::array_t<MKL_Complex16> Ap = py::array_t<MKL_Complex16>(step_count * num_modes_p);
+//     py::array_t<MKL_Complex16> As = py::array_t<MKL_Complex16>(step_count * num_modes_s);
+//     MKL_Complex16 *_Ap = (MKL_Complex16 *)Ap.request().ptr;
+//     MKL_Complex16 *_As = (MKL_Complex16 *)As.request().ptr;
+
+//     // copy the initial conditions in the matrix storing the evolution of field amplitudes        
+//     MKL_Complex16 *_As0 = (MKL_Complex16*) A_s.request().ptr;
+//     MKL_Complex16 *_Ap0 = (MKL_Complex16*) A_p.request().ptr;
+//     cblas_dcopy(2 * num_modes_s, (double*) &_As0[0], 1, (double *) &(_As[0]), 1);
+//     cblas_dcopy(2 * num_modes_p, (double*) &_Ap0[0], 1, (double *) &(_Ap[0]), 1);
+
+//     double *identity_p = (double *)mkl_calloc(num_modes_p * num_modes_p, sizeof(double), 64);
+//     double *identity_s = (double *)mkl_calloc(num_modes_s * num_modes_s, sizeof(double), 64);
+//     for (size_t i = 0; i < num_modes_p * num_modes_p; i += (num_modes_p+1))
+//         identity_p[i] = 1; 
+//     for (size_t i = 0; i < num_modes_s * num_modes_s; i += (num_modes_s+1))
+//         identity_s[i] = 1; 
+
+//     for (size_t iteration = 1; iteration < step_count; iteration++)
+//     {
+//         double theta = thetas[iteration-1];
+
+//         // compute the perturbation rotation matrices for the two frequencies
+//         _perturbation_rotation_matrix(Rs, theta, indices_buf_s, num_groups_s, num_modes_s);
+//         _perturbation_rotation_matrix(Rp, theta, indices_buf_p, num_groups_p, num_modes_p);
+
+//         // apply the rotation to the coupling matrix: compute R * K * R^T
+//         RKRt(Kp, Rp, Kp_theta, num_modes_p);
+//         RKRt(Ks, Rs, Ks_theta, num_modes_s);
+
+//         compute_linear_operator_eigenvals(_beta_p, Kp_theta, expMp, num_modes_p, dz);
+//         compute_linear_operator_eigenvals(_beta_s, Ks_theta, expMs, num_modes_s, dz);
+
+//         // compute the new field amplitudes after linear propagation
+//         MKL_Complex16 *y0p = &_Ap[(iteration-1) * num_modes_p];
+//         MKL_Complex16 *yp = &_Ap[iteration * num_modes_p];
+//         MKL_Complex16 *y0s = &_As[(iteration-1) * num_modes_s];
+//         MKL_Complex16 *ys = &_As[iteration * num_modes_s];
+
+//         apply_linear_operator(yp, y0p, expMp, num_modes_p);
+//         apply_linear_operator(ys, y0s, expMs, num_modes_s);
+
+//         // apply_nonlinear_operator( y0p, num_modes_p);
+//         // apply_nonlinear_operator( y0s, num_modes_s);
+
+//         apply_losses(yp, alpha_p, dz, num_modes_p);
+//         apply_losses(ys, alpha_s, dz, num_modes_s);
+//     }
+
+//     // free allocated heap memory
+//     mkl_free(Kp_theta);
+//     mkl_free(Ks_theta);
+//     mkl_free(Ktotal_p);
+//     mkl_free(Ktotal_s);
+//     mkl_free(Rs);
+//     mkl_free(Rp);
+//     mkl_free(expMs);
+//     mkl_free(expMp);
+
+//     Ap.resize({step_count, num_modes_p});
+//     As.resize({step_count, num_modes_s});
+
+//     return py::make_tuple(z, thetas_array, Ap, As);
+// }
+
+int optional(int a, std::optional<int> b)
+{
+    int b_ = 0;
+    if (b.has_value())
+        b_ = b.value();
+
+    return a + b_;
+}
 
 PYBIND11_MODULE(raman_linear_coupling, m)
 {
-    m.def("propagate", &integrate, "Propagator for Raman equations with linear coupling.");
+    m.def("propagate", &integrate, "Propagator for Raman equations with linear coupling.",
+        py::arg("A_s"),
+        py::arg("A_p"),
+        py::arg("fiber_length"),
+        py::arg("stepsize"),
+        py::arg("indices_s"),
+        py::arg("indices_p"),
+        py::arg("correlation_length"),
+        py::arg("K_s"),
+        py::arg("K_p"),
+        py::arg("alpha_s"),
+        py::arg("alpha_p"),
+        py::arg("beta_s"),
+        py::arg("beta_p"),
+        py::arg("seed") = py::none()
+        );
+
+    // m.def("nonlinear_propagation", &nonlinear_propagation, "Propagator for Raman equations with linear coupling.");
     m.def("perturbation_rotation_matrix", &perturbation_rotation_matrix);
     m.def("theta", &thetas);
+    m.def("optional", &optional, py::arg("a"), py::arg("b") = py::none());
 }
