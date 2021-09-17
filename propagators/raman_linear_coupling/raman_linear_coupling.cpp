@@ -155,7 +155,6 @@ void print_matrix_complex(MKL_Complex16 *A, int rows, int cols)
     }
 }
 
-
 int get_4d_index(int h, int i, int j, int k,int m0, int m1, int m2, int m3)
 {
     return m3*m2*m1*h + m2*m3*i + m3*j + k;
@@ -238,6 +237,7 @@ void apply_raman_interaction(
         y[h] = y0l[h] + dz * imag * omega / 4.0 * (total_contribution);
     }
 }
+
 
 void apply_losses(MKL_Complex16 *y, double loss_coefficient, double dz, int num_modes)
 {
@@ -362,6 +362,274 @@ py::array_t<double> thetas(double correlation_length, double dz, int step_count)
     compute_perturbation_angles(correlation_length, dz, step_count, buff);
 
     return theta;
+}
+
+void compute_nonlinear_propagation(
+    MKL_Complex16* y0,
+    MKL_Complex16* y,
+    int num_modes_signal,
+    int num_modes_pump, 
+    double signal_frequency,
+    double pump_frequency,
+    double sigma,
+    double a0,
+    double b0,
+    MKL_Complex16 aW,
+    MKL_Complex16 bW,
+    double *Q_signal[],
+    double *Q_pump[],
+    bool signal_spm_xpm,
+    bool pump_spm_xpm,
+    bool undepleted_pump
+)
+{
+
+    MKL_Complex16* y0s;
+    MKL_Complex16* y0p;
+
+    y0s = &y[0];
+    y0p = &y[num_modes_signal];
+    
+    double omega_pump = 2 * M_PI * pump_frequency;
+    double omega_signal = 2 * M_PI * signal_frequency;
+    std::complex<double> imag = std::complex(0.0, 1.0);
+
+    double *Q1p = Q_pump[0];
+    double *Q2p = Q_pump[1];
+    double *Q3p = Q_pump[2];
+    double *Q4p = Q_pump[3];
+    double *Q5p = Q_pump[4];
+    double *Q1s = Q_signal[0];
+    double *Q2s = Q_signal[1];
+    double *Q3s = Q_signal[2];
+    double *Q4s = Q_signal[3];
+    double *Q5s = Q_signal[4];
+
+    // *******************************************************************
+    // SPM and XPM contributions: terms 1, 2 of the Nonlinear Polarization
+    // *******************************************************************
+
+    //
+    // Pump
+    //
+    if (pump_spm_xpm)
+    {
+        for (size_t h = 0; h < num_modes_pump; h++)
+        {
+            MKL_Complex16 total_interaction = 0;
+            for (size_t i = 0; i < num_modes_pump; i++)
+                for (size_t j = 0; j < num_modes_pump; j++)
+                    for (size_t k = 0; k < num_modes_pump; k++)
+                    {
+                        int index = get_4d_index(h, i, j, k, num_modes_pump, num_modes_pump, num_modes_pump, num_modes_pump);
+                        MKL_Complex16 N1 = Q1p[index] * y0p[i] * y0p[j] * std::conj(y0p[k]);
+                        MKL_Complex16 N2 = Q2p[index] * std::conj(y0p[i]) * y0p[j] * y0p[k];
+
+                        total_interaction +=  ( 
+                            E0/8 * (sigma + 2.0 * b0) * N1 + 
+                            E0/4*(sigma + 2.0 * a0 * b0) * N2
+                            );
+                    }
+
+            y[num_modes_signal + h] = imag * omega_pump / 4.0 * total_interaction;
+        }
+    }
+
+    //
+    // Signal
+    //
+
+    if (signal_spm_xpm)
+    {
+        for (size_t h = 0; h < num_modes_signal; h++)
+        {
+            MKL_Complex16 total_interaction = 0;
+            for (size_t i = 0; i < num_modes_signal; i++)
+                for (size_t j = 0; j < num_modes_signal; j++)
+                    for (size_t k = 0; k < num_modes_signal; k++)
+                    {
+                        int index = get_4d_index(h, i, j, k, num_modes_signal, num_modes_signal, num_modes_signal, num_modes_signal);
+                        MKL_Complex16 N1 = Q1s[index] * y0s[i] * y0s[j] * std::conj(y0s[k]);
+                        MKL_Complex16 N2 = Q2s[index] * std::conj(y0s[i]) * y0s[j] * y0s[k];
+
+                        total_interaction +=  ( 
+                            E0/8 * (sigma + 2.0 * b0) * N1 + 
+                            E0/4*(sigma + 2.0 * a0 * b0) * N2
+                            );
+                    }
+            y[h] += imag * omega_pump / 4.0 * total_interaction;
+        } 
+    }
+
+    // ***************************************************************
+    // Raman contribution: terms 3, 4, 5 of the Nonlinear Polarization
+    // ***************************************************************
+
+    //
+    // Pump
+    //
+    if (!undepleted_pump)
+    {
+        for (size_t h = 0; h < num_modes_pump; h++)
+        {
+            MKL_Complex16 total_contribution = 0;
+            for (size_t i = 0; i < num_modes_signal; i++)
+                for (size_t j = 0; j < num_modes_pump; j++)
+                    for (size_t k = 0; k < num_modes_signal; k++)
+                    {
+                        int index = get_4d_index(h, i, j, k, num_modes_pump, num_modes_signal, num_modes_pump, num_modes_signal);
+
+                        MKL_Complex16 N3 = Q3p[index] * std::conj(y0s[i]) * y0s[j] * y0p[k];
+                        MKL_Complex16 N4 = Q4p[index] * y0s[i] * y0p[j] * std::conj(y0s[k]);
+                        MKL_Complex16 N5 = Q5p[index] * std::conj(y0s[i]) * y0p[j]  * y0s[k];
+
+                        MKL_Complex16 contrib3 = E0 / 4 * (sigma + 2.0 * a0 + std::conj(bW)) * N3;
+                        MKL_Complex16 contrib4 = E0 / 4 * (sigma + b0 + std::conj(bW)) * N4;
+                        MKL_Complex16 contrib5 = E0 / 4 * (sigma + 2.0 * std::conj(aW) + b0) * N5;
+                        total_contribution += (contrib3 + contrib4 + contrib5);
+                    }
+
+            y[num_modes_signal + h] += imag * omega_pump / 4.0 * total_contribution;
+        }
+
+    }
+
+    //
+    // signal
+    //
+    for (size_t h = 0; h < num_modes_signal; h++)
+    {
+        MKL_Complex16 total_contribution = 0;
+        for (size_t i = 0; i < num_modes_pump; i++)
+            for (size_t j = 0; j < num_modes_signal; j++)
+                for (size_t k = 0; k < num_modes_pump; k++)
+                {
+                    int index = get_4d_index(h, i, j, k, num_modes_signal, num_modes_pump, num_modes_signal, num_modes_pump);
+
+                    MKL_Complex16 N3 = Q3s[index] * std::conj(y0p[i]) * y0p[j] * y0s[k];
+                    MKL_Complex16 N4 = Q4s[index] * y0p[i] * y0s[j] * std::conj(y0p[k]);
+                    MKL_Complex16 N5 = Q5s[index] * std::conj(y0p[i]) * y0s[j]  * y0p[k];
+
+                    MKL_Complex16 contrib3 = E0 / 4 * (sigma + 2.0 * a0 + bW) * N3;
+                    MKL_Complex16 contrib4 = E0 / 4 * (sigma + b0 + bW) * N4;
+                    MKL_Complex16 contrib5 = E0 / 4 * (sigma + 2.0 * aW + b0) * N5;
+                    total_contribution += (contrib3 + contrib4 + contrib5);
+                }
+
+        y[h] += imag * omega_pump / 4.0 * total_contribution;
+    }
+}
+
+void nonlinear_RK4(
+    MKL_Complex16* y0s,
+    MKL_Complex16* y0p,
+    MKL_Complex16* ys,
+    MKL_Complex16* yp,
+    int num_modes_signal,
+    int num_modes_pump, 
+    double signal_frequency,
+    double pump_frequency,
+    double step_size,
+    double sigma,
+    double a0,
+    double b0,
+    MKL_Complex16 aW,
+    MKL_Complex16 bW,
+    double *Q_signal[],
+    double *Q_pump[],
+    bool signal_spm_xpm,
+    bool pump_spm_xpm,
+    bool undepleted_pump
+)
+{
+    MKL_Complex16 *y_new, *y0, *y0tmp1, *y0tmp2, *y0tmp3, *k1, *k2, *k3, *k4;
+    y_new = (MKL_Complex16*) mkl_malloc((num_modes_signal + num_modes_pump) * sizeof(MKL_Complex16), 64);
+    y0 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    y0tmp1 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    y0tmp2 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    y0tmp3 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    k1 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    k2 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    k3 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+    k4 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
+
+
+    // cblas_dscal(2 * num_modes_s * step_count, 0, (double *) &(_As[0]), 1);
+    // cblas_dscal(2 * num_modes_p * step_count, 0, (double *) &(_Ap[0]), 1);
+
+    cblas_dcopy(2 * num_modes_signal, (double*) &y0s[0], 1, (double *) &(y0[0]), 1);
+    cblas_dcopy(2 * num_modes_pump, (double*) &y0p[0], 1, (double *) &(y0[num_modes_signal]), 1);
+    cblas_dcopy(2 * (num_modes_signal + num_modes_pump), (double*) &y0[0], 1, (double *) &(y0tmp1[0]), 1);
+    cblas_dcopy(2 * (num_modes_signal + num_modes_pump), (double*) &y0[0], 1, (double *) &(y0tmp2[0]), 1);
+    cblas_dcopy(2 * (num_modes_signal + num_modes_pump), (double*) &y0[0], 1, (double *) &(y0tmp3[0]), 1);
+
+    
+
+    //
+    // compute k1
+    //
+
+    // k1 = f(y0)
+    compute_nonlinear_propagation(y0, k1, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+
+
+
+    //
+    // compute k2
+    //
+
+    // k2 = f(y0 + h/2 * k1)
+    // y0tmp1 = y0 + h/2 * k1
+    MKL_Complex16 scaling_k1 = step_size / 2.0;
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void *) &scaling_k1, k1, 1, y0tmp1, 1);
+
+    compute_nonlinear_propagation(y0tmp1, k2, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+
+    // compute k3
+
+    // k3 = f(y0 + h/2 * k2)
+    // y0tmp2 = y0 + h/2 * k2
+    MKL_Complex16 scaling_k2 = step_size / 2.0;
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void *) &scaling_k2, k2, 1, y0tmp2, 1);
+
+    compute_nonlinear_propagation(y0tmp2, k3, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+
+    // compute k4
+    // k4 = f(y0 + h*k3)
+    // y0tmp3 = y0 + h*k3
+    MKL_Complex16 scaling_k3 = step_size;
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void *) &scaling_k3, k3, 1, y0tmp3, 1);
+    compute_nonlinear_propagation(y0tmp3, k4, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+
+
+
+    MKL_Complex16 scaling = 1.0/6.0 * step_size;
+    MKL_Complex16 scaling2 = scaling * 2.0;
+    MKL_Complex16 one = 1;
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &one,        y0, 1, y_new, 1);
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &scaling,    k1, 1, y_new, 1);
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &(scaling2), k2, 1, y_new, 1);
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &(scaling2), k3, 1, y_new, 1);
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &scaling,    k4, 1, y_new, 1);
+
+    // copy results back
+    cblas_dcopy(2 * num_modes_signal, (double*) &y_new[0], 1, (double *) &(ys[0]), 1);
+    cblas_dcopy(2 * num_modes_pump, (double*) &y_new[num_modes_signal], 1, (double *) &(yp[0]), 1);
+    
+
+    mkl_free(y_new);
+    mkl_free(k1);
+    mkl_free(k2);
+    mkl_free(k3);
+    mkl_free(k4);
+    mkl_free(y0);
+    mkl_free(y0tmp1);
+    mkl_free(y0tmp2);
+    mkl_free(y0tmp3);
 }
 
 py::tuple integrate(
@@ -603,18 +871,11 @@ py::tuple integrate(
         // if required, perform the nonlinear step
         if (nonlinear_propagation)
         {
-            // on the signal
-            if (apply_signal_spm)
-                apply_spm_xpm(y0s, ys, Q_s[0], Q_s[1], sigma, a0, b0, signal_freq, num_modes_s, dz);
-
-            apply_raman_interaction(ys_tmp, yp_tmp, ys, Q_s[2], Q_s[3], Q_s[4], sigma, a0, b0, aW, bW, signal_freq, num_modes_s, num_modes_p, dz);
-
-            // on the pump
-            if (apply_pump_spm)
-                apply_spm_xpm(y0p, yp, Q_p[0], Q_p[1], sigma, a0, b0, pump_freq, num_modes_p, dz);
-
-            if (!undepleted)
-                apply_raman_interaction(yp_tmp, ys_tmp, yp, Q_p[2], Q_p[3], Q_p[4], sigma, a0, b0, std::conj(aW), std::conj(bW), pump_freq, num_modes_p, num_modes_s, dz);
+            nonlinear_RK4(ys_tmp, yp_tmp, ys, yp, num_modes_s, num_modes_p,
+                    signal_freq, pump_freq, dz, sigma, a0, b0, aW, bW, Q_s, Q_p, 
+                    apply_signal_spm,
+                    apply_pump_spm,
+                    undepleted);
         }
     }
 
