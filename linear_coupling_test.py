@@ -5,30 +5,49 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
 
+from fiber import StepIndexFiber
+
 import raman_linear_coupling
 
+fiber = StepIndexFiber(clad_index=1.46, delta=0.005, core_radius=6, clad_radius=60, data_path="fibers")
+signal_wavelength = 1550
+pump_wavelength = 1459.45
 
-linear_coupling_filename = "coupling_coefficients-2modes-clad_index=1.4600-Delta=0.005-core_radius=6.00um-clad_radius=60.00um-wavelength=1550.00nm-mesh_size=1.mat"
-filepath = os.path.join("fibers", linear_coupling_filename)
-data = scipy.io.loadmat(filepath, simplify_cells=True)
-data["mode_names"] = data["mode_names"].tolist()
-
-linear_coupling_filename_pump = "coupling_coefficients-2modes-clad_index=1.4600-Delta=0.005-core_radius=6.00um-clad_radius=60.00um-wavelength=1459.45nm-mesh_size=1.mat"
-filepath = os.path.join("fibers", linear_coupling_filename_pump)
-data_pump = scipy.io.loadmat(filepath, simplify_cells=True)
-data_pump["mode_names"] = data_pump["mode_names"].tolist()
-
+fiber.load_data(wavelength=signal_wavelength)
+fiber.load_data(wavelength=pump_wavelength)
 
 fiber_length = 10e3
 correlation_length = 10
 dz = correlation_length / 100
-indices_s = np.array(
-    [0 if d == 2 else 1 for d in data["degeneracies"]], dtype="int32")
-indices_p = np.array(
-    [0 if d == 2 else 1 for d in data_pump["degeneracies"]], dtype="int32")
 
-num_modes_s = data["num_modes"]
-num_modes_p = data_pump["num_modes"]
+indices_s = fiber.group_azimuthal_orders(wavelength=signal_wavelength).astype("int32")
+indices_p = fiber.group_azimuthal_orders(wavelength=pump_wavelength).astype("int32")
+num_modes_s = fiber.num_modes(wavelength=signal_wavelength)
+num_modes_p = fiber.num_modes(wavelength=pump_wavelength)
+
+LbetaLkappa = 1e-3
+Lbeta = fiber.modal_beat_length(wavelength=signal_wavelength)
+Lkappa = Lbeta / LbetaLkappa
+perturb_strength = 2 * np.pi / Lkappa
+
+print(f"Lbeta: {Lbeta}", f"Lkappa: {Lkappa}")
+
+delta_n = fiber.birefringence(perturb_strength, wavelength=signal_wavelength)
+Kb_s = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=signal_wavelength)
+Kb_p = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=pump_wavelength)
+
+gamma = fiber.core_ellipticity(perturb_strength, wavelength=signal_wavelength)
+Ke_s = fiber.core_ellipticity_coupling_matrix(gamma=gamma, wavelength=signal_wavelength)
+Ke_p = fiber.core_ellipticity_coupling_matrix(gamma=gamma, wavelength=pump_wavelength)
+
+K_s = Ke_s + Kb_s
+K_p = Ke_p + Kb_p
+K_s = Ke_s
+K_p = Ke_p
+
+np.set_printoptions(precision=3)
+print(Kb_s)
+print(Ke_s)
 
 Pp0 = 1e-3
 Ps0 = 1e-3
@@ -40,78 +59,72 @@ Ap0[0] = np.sqrt(Pp0)
 
 pump_attenuation = 0.3 * 1e-3 * np.log(10) / 10
 signal_attenuation = 0.2 * 1e-3 * np.log(10) / 10
-
 alpha_s = signal_attenuation
 alpha_p = pump_attenuation
 
-Lbeta = data["Lbeta"]
-Lkappa = Lbeta * 1e3
-deltaKappa = 2 * np.pi / Lkappa
-print("Lbeta:", Lbeta, "Lkappa", Lkappa)
-deltaN0 = data["deltaN0"]
-deltaN = deltaN0 * deltaKappa
-
-deltaKappa_pump = deltaN / data_pump["deltaN0"]
-
-Kb_s = deltaKappa * data["Kb"]
-Kb_p = deltaKappa_pump * data_pump["Kb"]
-
-
-Kb_s = np.real(Kb_s)
-Kb_p = np.real(Kb_p)
-Kb_s = np.tril(Kb_s) + np.triu(Kb_s.T, 1)
-Kb_p = np.tril(Kb_p) + np.triu(Kb_p.T, 1)
-
-
-beta_s = data["beta"]
-beta_p = data_pump["beta"]
-
-beta_s -= beta_s.mean()
-beta_p -= beta_p.mean()
-
-beta_s *= 1
-beta_p *= 1
-
-print(beta_s, beta_p)
-print(Kb_s)
-print(Kb_p)
-
+beta_s = fiber.propagation_constants(wavelength=signal_wavelength, remove_mean=True)
+beta_p = fiber.propagation_constants(wavelength=pump_wavelength, remove_mean=True)
 
 thetas = []
 start = time.perf_counter()
 z, theta, Ap, As = raman_linear_coupling.propagate(
-    As0,
-    Ap0,
+    As0.astype("complex128"),
+    Ap0.astype("complex128"),
     fiber_length,
     dz,
     indices_s,
     indices_p,
     correlation_length,
-    Kb_s,
-    Kb_p,
     alpha_s,
     alpha_p,
-    beta_s,
-    beta_p,
+    beta_s.astype("float64"),
+    beta_p.astype("float64"),
+    K_s=K_s.astype("float64"),
+    K_p=K_p.astype("float64"),
+    signal_coupling=True,
+    pump_coupling=False,
+    # seed=None,
+    # nonlinear_opt=None,
+    # undepleted_pump=None
 )
+
 end = time.perf_counter()
 print("Time: ", (end - start))
 
 signal_power_s = np.abs(As) ** 2
 signal_power_p = np.abs(Ap) ** 2
 
+mode_names = fiber.mode_names(wavelength=signal_wavelength)
 
 plt.figure()
+plt.subplot(121)
 plt.plot(z, (signal_power_s) * 1e3)
-plt.legend(data["mode_names"], loc="upper right")
+plt.legend(mode_names, loc="upper right")
 plt.xlabel("Position [m]")
 plt.ylabel("Power [mW]")
 
-plt.figure()
+plt.subplot(122)
 plt.plot(z, 30 + 10 * np.log10((signal_power_s)))
-plt.legend(data["mode_names"], loc="upper right")
+plt.legend(mode_names, loc="upper right")
 plt.xlabel("Position [m]")
 plt.ylabel("Power [dBm]")
+
+plt.suptitle("Signal power")
+
+plt.figure()
+plt.subplot(121)
+plt.plot(z, (signal_power_p) * 1e3)
+plt.legend(mode_names, loc="upper right")
+plt.xlabel("Position [m]")
+plt.ylabel("Power [mW]")
+
+plt.subplot(122)
+plt.plot(z, 30 + 10 * np.log10((signal_power_p)))
+plt.legend(mode_names, loc="upper right")
+plt.xlabel("Position [m]")
+plt.ylabel("Power [dBm]")
+
+plt.suptitle("Signal power")
 
 total_signal_power = np.sum(np.abs(As0) ** 2)
 total_pump_power = np.sum(np.abs(Ap0) ** 2)
@@ -121,7 +134,7 @@ plt.plot(z, 30 + 10 * np.log10(signal_power_s.sum(axis=1)),
          label="Total power, pump")
 plt.plot(z, 30 + 10 * np.log10(signal_power_p.sum(axis=1)),
          label="Total power, signal")
-# plt.ylim(0, 10*np.log10(1.5 * max(total_signal_power, total_pump_power)))
+
 plt.xlabel("Position [m]")
 plt.ylabel("Power [dBm]")
 plt.legend()

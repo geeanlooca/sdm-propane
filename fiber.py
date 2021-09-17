@@ -38,6 +38,7 @@ class StepIndexFiber(Fiber):
         self._num_modes = {}
         self._radial_orders = {}
         self._azimuthal_orders = {}
+        self._group_azimuthal_orders = {}
         self._orders = {}
         self._group_orders = {}
         self._degeneracies = {}
@@ -72,16 +73,19 @@ class StepIndexFiber(Fiber):
         wavelength = round(data["wavelength"], 2)
         self.wavelength.append(wavelength)
         self._mode_names[wavelength] = data["mode_names"]
-        self._degeneracies[wavelength] = data["degeneracies"]
 
         orders = self._mode_orders_from_names(data["mode_names"])
 
-        self._radial_orders[wavelength] = [a for a, b in orders]
-        self._azimuthal_orders[wavelength] = [b for a, b in orders]
+        self._radial_orders[wavelength] = [b for a, b in orders]
+        self._azimuthal_orders[wavelength] = [a for a, b in orders]
         self._orders[wavelength] = orders
         self._group_orders[wavelength] = list(dict.fromkeys(orders))
+        self._group_azimuthal_orders[wavelength] = [a for a, b in self._group_orders[wavelength]]
 
-        group_degen = [ 2 if l==0 else 4 for l,p in self._group_orders[wavelength]]
+        group_degen = [ 2 if l==0 else 4 for l in self._group_azimuthal_orders[wavelength]]
+        degen = [ 2 if l==0 else 4 for l in self._azimuthal_orders[wavelength]]
+
+        self._degeneracies[wavelength] = degen
         self._group_degeneracies[wavelength] =  group_degen
 
         self.gamma0[wavelength] =  data["gamma0"] 
@@ -96,15 +100,15 @@ class StepIndexFiber(Fiber):
         self.Ke[wavelength] = self._clean_ellipticity_matrix(Ke, wavelength)
 
     def _mode_orders_from_name(self, name):
-        r, a = name[2:4]
-        return int(r), int(a)
+        a, r = name[2:4]
+        return int(a), int(r)
 
     def _mode_orders_from_names(self, names):
         orders = []
 
         for name in names:
-            radial, azimuthal = self._mode_orders_from_name(name)
-            orders.append((radial, azimuthal))
+            azimuthal, radial = self._mode_orders_from_name(name)
+            orders.append((azimuthal, radial))
 
         return orders
 
@@ -129,7 +133,6 @@ class StepIndexFiber(Fiber):
             Next-Generation Optical Communication: Components, Sub-Systems,
             and Systems III, Feb. 2014, vol. 9009, p. 90090G, doi: 10.1117/12.2042763.
         """
-
         group_orders = self.group_orders(wavelength=wavelength)
 
         _K = np.copy(K)
@@ -258,9 +261,9 @@ class StepIndexFiber(Fiber):
         b = wavelength_b
         return self._Q5[(a, b)]
         
-    def get_raman_coefficients(self, n2, gR, signal_wavelength, pump_wavelength):
-        signal_freq = lambda2nu(signal_wavelength)
-        pump_freq = lambda2nu(pump_wavelength)
+    def get_raman_coefficients(self, n2, gR, signal_wavelength, pump_wavelength, as_dict=False):
+        signal_freq = lambda2nu(signal_wavelength * 1e-9)
+        pump_freq = lambda2nu(pump_wavelength * 1e-9)
         n = self.core_index 
 
         a_interp = scipy.interpolate.interp1d(self.frequency_shift, self.a_response)
@@ -281,7 +284,32 @@ class StepIndexFiber(Fiber):
 
         sigma = ( n2 * 4 * c0 * e0 * n**2 - 2 * ( a0 + b0) ) * 2 / 3
 
-        return sigma, a0, b0, aW, bW
+        if as_dict:
+            d = {
+                "n2": n2,
+                "gR": gR,
+                "sigma": sigma,
+                "a0": a0,
+                "b0": b0,
+                "aW": aW,
+                "bW": bW,
+                "signal_frequency": signal_freq,
+                "pump_frequency": pump_freq,
+                "Q1_s": self.Q1(signal_wavelength, pump_wavelength),
+                "Q2_s": self.Q2(signal_wavelength, pump_wavelength),
+                "Q3_s": self.Q3(signal_wavelength, pump_wavelength),
+                "Q4_s": self.Q4(signal_wavelength, pump_wavelength),
+                "Q5_s": self.Q5(signal_wavelength, pump_wavelength),
+                "Q1_p": self.Q1(pump_wavelength, signal_wavelength),
+                "Q2_p": self.Q2(pump_wavelength, signal_wavelength),
+                "Q3_p": self.Q3(pump_wavelength, signal_wavelength),
+                "Q4_p": self.Q4(pump_wavelength, signal_wavelength),
+                "Q5_p": self.Q5(pump_wavelength, signal_wavelength),
+            }
+
+            return d
+        else:
+            return sigma, a0, b0, aW, bW
 
 
     @property
@@ -315,6 +343,9 @@ class StepIndexFiber(Fiber):
     def azimuthal_orders(self, wavelength=None):
         return self.get_param("_azimuthal_orders", wavelength=wavelength)
 
+    def group_azimuthal_orders(self, wavelength=None):
+        return np.array(self.get_param("_group_azimuthal_orders", wavelength=wavelength)).astype("int32")
+
     def num_modes(self, wavelength=None):
         return self.get_param("_num_modes", wavelength=wavelength)
 
@@ -334,8 +365,13 @@ class StepIndexFiber(Fiber):
     def degeneracies(self, wavelength=None):
         return self.get_param("_degeneracies", wavelength=wavelength)
 
-    def propagation_constants(self, wavelength=None):
-        return self.get_param("betas", wavelength=wavelength)
+    def propagation_constants(self, wavelength=None, remove_mean=False):
+        betas = self.get_param("betas", wavelength=wavelength)
+
+        if remove_mean:
+            betas = betas - np.mean(betas)
+
+        return betas
 
     def birefringence(self, strength, wavelength=None):
         delta_n0 = self.get_param("delta_n0", wavelength=wavelength)
