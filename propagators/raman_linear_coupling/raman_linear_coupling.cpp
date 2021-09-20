@@ -20,7 +20,7 @@
 #include "mkl_lapacke.h"
 #include "matrix_exponential.h"
 
-// #include <omp.h>
+#include <omp.h>
 
 
 namespace py = pybind11;
@@ -387,9 +387,9 @@ void compute_nonlinear_propagation(
     MKL_Complex16* y0s;
     MKL_Complex16* y0p;
 
-    y0s = &y[0];
-    y0p = &y[num_modes_signal];
-    
+    y0s = &y0[0];
+    y0p = &y0[num_modes_signal];
+
     double omega_pump = 2 * M_PI * pump_frequency;
     double omega_signal = 2 * M_PI * signal_frequency;
     std::complex<double> imag = std::complex(0.0, 1.0);
@@ -479,6 +479,7 @@ void compute_nonlinear_propagation(
                     {
                         int index = get_4d_index(h, i, j, k, num_modes_pump, num_modes_signal, num_modes_pump, num_modes_signal);
 
+
                         MKL_Complex16 N3 = Q3p[index] * std::conj(y0s[i]) * y0s[j] * y0p[k];
                         MKL_Complex16 N4 = Q4p[index] * y0s[i] * y0p[j] * std::conj(y0s[k]);
                         MKL_Complex16 N5 = Q5p[index] * std::conj(y0s[i]) * y0p[j]  * y0s[k];
@@ -501,10 +502,10 @@ void compute_nonlinear_propagation(
     {
         MKL_Complex16 total_contribution = 0;
         for (size_t i = 0; i < num_modes_pump; i++)
-            for (size_t j = 0; j < num_modes_signal; j++)
-                for (size_t k = 0; k < num_modes_pump; k++)
+            for (size_t j = 0; j < num_modes_pump; j++)
+                for (size_t k = 0; k < num_modes_signal; k++)
                 {
-                    int index = get_4d_index(h, i, j, k, num_modes_signal, num_modes_pump, num_modes_signal, num_modes_pump);
+                    int index = get_4d_index(h, i, j, k, num_modes_signal, num_modes_pump, num_modes_pump, num_modes_signal);
 
                     MKL_Complex16 N3 = Q3s[index] * std::conj(y0p[i]) * y0p[j] * y0s[k];
                     MKL_Complex16 N4 = Q4s[index] * y0p[i] * y0s[j] * std::conj(y0p[k]);
@@ -516,7 +517,7 @@ void compute_nonlinear_propagation(
                     total_contribution += (contrib3 + contrib4 + contrib5);
                 }
 
-        y[h] += imag * omega_pump / 4.0 * total_contribution;
+        y[h] += imag * omega_signal / 4.0 * total_contribution;
     }
 }
 
@@ -543,7 +544,7 @@ void nonlinear_RK4(
 )
 {
     MKL_Complex16 *y_new, *y0, *y0tmp1, *y0tmp2, *y0tmp3, *k1, *k2, *k3, *k4;
-    y_new = (MKL_Complex16*) mkl_malloc((num_modes_signal + num_modes_pump) * sizeof(MKL_Complex16), 64);
+    y_new = (MKL_Complex16*) mkl_calloc((num_modes_signal + num_modes_pump) , sizeof(MKL_Complex16), 64);
     y0 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
     y0tmp1 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
     y0tmp2 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
@@ -554,8 +555,6 @@ void nonlinear_RK4(
     k4 = (MKL_Complex16*) mkl_calloc(num_modes_signal + num_modes_pump, sizeof(MKL_Complex16), 64);
 
 
-    // cblas_dscal(2 * num_modes_s * step_count, 0, (double *) &(_As[0]), 1);
-    // cblas_dscal(2 * num_modes_p * step_count, 0, (double *) &(_Ap[0]), 1);
 
     cblas_dcopy(2 * num_modes_signal, (double*) &y0s[0], 1, (double *) &(y0[0]), 1);
     cblas_dcopy(2 * num_modes_pump, (double*) &y0p[0], 1, (double *) &(y0[num_modes_signal]), 1);
@@ -610,11 +609,12 @@ void nonlinear_RK4(
     MKL_Complex16 scaling = 1.0/6.0 * step_size;
     MKL_Complex16 scaling2 = scaling * 2.0;
     MKL_Complex16 one = 1;
-    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &one,        y0, 1, y_new, 1);
+
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &scaling,    k1, 1, y_new, 1);
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &(scaling2), k2, 1, y_new, 1);
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &(scaling2), k3, 1, y_new, 1);
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &scaling,    k4, 1, y_new, 1);
+    cblas_zaxpy(num_modes_pump + num_modes_signal, (void*) &one,        y0, 1, y_new, 1);
 
     // copy results back
     cblas_dcopy(2 * num_modes_signal, (double*) &y_new[0], 1, (double *) &(ys[0]), 1);
@@ -877,6 +877,7 @@ py::tuple integrate(
                     apply_pump_spm,
                     undepleted);
         }
+
     }
 
     // free allocated heap memory

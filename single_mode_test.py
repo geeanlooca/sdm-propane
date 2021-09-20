@@ -66,8 +66,8 @@ Pp0 = args.power * 1e-3
 Ps0 = 3e-3
 Ap0 = np.zeros((num_modes_p,)).astype("complex128")
 As0 = np.zeros((num_modes_s,)).astype("complex128")
-Ap0[:] = np.sqrt(Pp0)
-As0[0] = np.sqrt(Ps0)
+Ap0[0] = np.sqrt(Pp0)
+As0[:] = np.sqrt(Ps0)
 
 pump_attenuation = 0.2* 1e-3 * np.log(10) / 10
 signal_attenuation = 0.2 * 1e-3 * np.log(10) / 10
@@ -139,8 +139,8 @@ z, theta, Ap, As =propagation_function(
     undepleted_pump=args.undepleted_pump,
     signal_coupling=args.signal_coupling,
     pump_coupling=args.pump_coupling,
-    signal_spm=False,
-    pump_spm=False,
+    signal_spm=True,
+    pump_spm=True,
 )
 end = time.perf_counter()
 print("Time: ", (end - start))
@@ -203,7 +203,7 @@ plt.grid()
 
 plt.subplot(122)
 plt.plot(z*1e-3, 30 + 10 * np.log10((signal_power_p)))
-plt.plot(z*1e-3, 30 + 10 * np.log10((Pp_th)), marker='x', markevery=markevery, linestyle='none')
+plt.plot(z*1e-3, 30 + 10 * np.log10((Pp_th)), marker='x', markevery=markevery, linestyle='none', label="Undepleted pump solution")
 plt.legend(fiber.mode_names(pump_wavelength), loc="upper right")
 plt.xlabel("Position [km]")
 plt.ylabel("Power [dBm]")
