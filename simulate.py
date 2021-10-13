@@ -29,8 +29,6 @@ def simulate(x):
     return random.random() * 10
 
 
-
-
 if __name__ == "__main__":
     manager = StatsManager("saving_results_test.h5")
     while True:
