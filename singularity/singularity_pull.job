@@ -1,0 +1,9 @@
+#!/bin/bash
+#SBATCH -J singularity_pull
+#SBATCH -o singularity_pull_output_%j.txt
+#SBATCH -e singularity_pull_error_%j.txt
+#SBATCH -n 1
+#SBATCH -p allgroups
+#SBATCH --mem 10G
+
+srun singularity pull --arch amd64 library://gmarcon/default/ubuntu_mkl:1.0 

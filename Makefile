@@ -27,3 +27,5 @@ sandbox: singularity/singularity_image.def
 blade-singularity-build: singularity/singularity_image.def
 	sbatch singularity/singularity_remote_build.job
 
+blade-singularity-pull:
+	sbatch singularity/singularity_pull.job
