@@ -20,3 +20,6 @@ omp: blas_multicore$(shell python3-config --extension-suffix)
 
 test:
 	python -m pytest -s tests/
+
+sandbox: singularity_image.def
+	sudo singularity build --sandbox sandbox/ singularity_image.def
