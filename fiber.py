@@ -6,6 +6,7 @@ import numpy as np
 import scipy.io
 from scipy.constants import lambda2nu, speed_of_light as c0, epsilon_0 as e0
 import scipy.interpolate
+import scipy.linalg
 
 import itertools
 
@@ -14,6 +15,11 @@ class Fiber(ABC):
     def __init__(self):
         pass
 
+    @staticmethod
+    def get_coupling_strength(K):
+        eigvals = scipy.linalg.eigvals(K)
+        coupling_birefringence = eigvals.max() - eigvals.min()
+        return coupling_birefringence
 
 class StepIndexFiber(Fiber):
     def __init__(self, clad_index, delta, core_radius, clad_radius, data_path=None):
@@ -88,16 +94,27 @@ class StepIndexFiber(Fiber):
         self._degeneracies[wavelength] = degen
         self._group_degeneracies[wavelength] =  group_degen
 
-        self.gamma0[wavelength] =  data["gamma0"] 
-        self.delta_n0[wavelength] = data["deltaN0"] 
+        Ke = self._force_linear_coupling_simmetry(data["Ke"])
+        Kb = self._force_linear_coupling_simmetry(data["Kb"])
+        Kb = self._clean_birefringence_matrix(Kb)
+        Ke = self._clean_ellipticity_matrix(Ke, wavelength)
+
+        kappa_e = Fiber.get_coupling_strength(Ke)
+        kappa_b = Fiber.get_coupling_strength(Kb)
+
+        # adjust reference parameters to make sure matrices are normalized to unit strength
+        delta_n0 = data["deltaN0"] / kappa_b
+        gamma0 = data["gamma0"] / kappa_e
+
+        self.Kb[wavelength] = Kb / kappa_b
+        self.Ke[wavelength] = Ke / kappa_e
+
+        self.gamma0[wavelength] =  gamma0
+        self.delta_n0[wavelength] = delta_n0
         self._num_groups[wavelength] = data["num_groups"]
         self.betas[wavelength] = np.array(data["beta"])
         self._num_modes[wavelength] = data["num_modes"]
 
-        Ke = self._force_linear_coupling_simmetry(data["Ke"])
-        Kb = self._force_linear_coupling_simmetry(data["Kb"])
-        self.Kb[wavelength] = self._clean_birefringence_matrix(Kb)
-        self.Ke[wavelength] = self._clean_ellipticity_matrix(Ke, wavelength)
 
     def _mode_orders_from_name(self, name):
         a, r = name[2:4]
@@ -176,7 +193,6 @@ class StepIndexFiber(Fiber):
 
         return False
         
-
     def _get_block_indeces(self, group_a, group_b, wavelength):
         """Get the slices of the block of the coupling matrix for the two specified groups."""
 
@@ -203,7 +219,6 @@ class StepIndexFiber(Fiber):
         self.frequency_shift = data["frequency"]
         self.a_response = data["a"]
         self.b_response = data["b"]
-
 
     def load_nonlinear_coefficients(self, signal_wavelength, pump_wavelength, data_path=None, mesh_size=1):
         filename = StepIndexFiber.get_nonlinear_filename(clad_index=self.clad_index,
