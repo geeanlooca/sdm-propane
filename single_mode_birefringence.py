@@ -1,3 +1,4 @@
+
 #%%
 import argparse
 import os
@@ -25,7 +26,7 @@ parser.add_argument("-pc", "--pump-coupling", action="store_true")
 parser.add_argument("-v", "--verbose", action="store_true")
 
 
-args = parser.parse_args(args=[])
+args = parser.parse_args()
 
 
 fiber = StepIndexFiber(clad_index=1.46, delta=0.005, core_radius=6, clad_radius=60, data_path="fibers")
@@ -35,7 +36,7 @@ pump_wavelength = 1459.45
 signal_freq = lambda2nu(signal_wavelength * 1e-9)
 pump_freq = lambda2nu(pump_wavelength * 1e-9)
 
-n2 = 4e-19
+n2 = 4e-20
 gR = 1e-13
 
 fiber.load_data(wavelength=signal_wavelength)
@@ -43,14 +44,11 @@ fiber.load_data(wavelength=pump_wavelength)
 fiber.load_nonlinear_coefficients(signal_wavelength, pump_wavelength)
 
 Lbeta = fiber.modal_beat_length(wavelength=signal_wavelength)
-Lpert = 1e5 * Lbeta
+Lpert = 1e3 * Lbeta
 delta_n = fiber.birefringence(2 * np.pi / Lpert, wavelength=signal_wavelength)
 
-# fiber.core_ellipticity()
 K_signal = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=signal_wavelength)
 K_pump = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=pump_wavelength)
-# K_signal = fiber.core_ellipticity_coupling_matrix(delta_n=delta_n, wavelength=signal_wavelength)
-# K_pump = fiber.core_ellipticity_coupling_matrix(delta_n=delta_n, wavelength=pump_wavelength)
 
 nonlinear_params = fiber.get_raman_coefficients(n2, gR, signal_wavelength, pump_wavelength, as_dict=True) 
 
@@ -61,14 +59,22 @@ dz = args.dz
 
 indices_s = fiber.group_azimuthal_orders(wavelength=signal_wavelength)
 indices_p = fiber.group_azimuthal_orders(wavelength=pump_wavelength)
+
 num_modes_s = fiber.num_modes(signal_wavelength)
 num_modes_p = fiber.num_modes(pump_wavelength)
 
 Pp0 = args.power * 1e-3
-Ps0 = 3e-3
+Ps0 = 1e-3
 Ap0 = np.zeros((num_modes_p,)).astype("complex128")
 As0 = np.zeros((num_modes_s,)).astype("complex128")
-Ap0[0] = np.sqrt(Pp0)
+
+pump_sop = np.array([1, 1, 1], dtype="float32")
+pump_sop = pump_sop / (np.sqrt(np.sum(pump_sop)))
+
+from polarization import stokes_to_jones
+ApJ = stokes_to_jones(pump_sop)
+
+Ap0[0:2] = np.sqrt(Pp0) * ApJ
 As0[0] = np.sqrt(Ps0)
 
 pump_attenuation = 0.2* 1e-3 * np.log(10) / 10
@@ -94,28 +100,6 @@ if args.verbose:
     print("b0", nonlinear_params['b0'])
     print("aW", nonlinear_params['aW'])
     print("bW", nonlinear_params['bW'])
-
-
-nonlinear_params["Q1_s"] *= 0
-nonlinear_params["Q2_s"] *= 0
-nonlinear_params["Q1_p"] *= 0
-nonlinear_params["Q2_p"] *= 0
-
-# Q3 = nonlinear_params["Q3_s"]
-# Q30 = Q3[0,0,0,0]
-# Q3 = np.zeros_like(Q3)
-# Q3[0,0,0,0] = Q30
-# nonlinear_params["Q3_s"] = Q3
-# nonlinear_params["Q4_s"] = Q3
-# nonlinear_params["Q5_s"] = Q3
-
-# Q3p = nonlinear_params["Q3_p"]
-# Q30 = Q3p[0,0,0,0]
-# Q3p = np.zeros_like(Q3p)
-# Q3p[0,0,0,0] = Q30
-# nonlinear_params["Q3_p"] = Q3p
-# nonlinear_params["Q4_p"] = Q3p
-# nonlinear_params["Q5_p"] = Q3p
 
 
 propagation_function = raman_linear_coupling.propagate
@@ -148,12 +132,9 @@ end = time.perf_counter()
 print("Time: ", (end - start))
 
 
-target_points = 1000
-# print("Decimation factor:", decimation_factor, "Sample count:", len(z))
-
 # z = z[::10]
-# As = As[::10]
-# Ap = Ap[::10]
+As = As[:, 0:2]
+Ap = Ap[:, 0:2]
 
 
 signal_power_s = np.abs(As) ** 2
@@ -183,10 +164,8 @@ plt.style.use(['science', 'ieee', 'bright'])
 
 plt.figure(figsize=(4, 2.5))
 # plt.subplot(121)
-plt.plot(z*1e-3, (signal_power_s[:, 0]) * 1e3, label="Signal, simulation")
-plt.plot(z*1e-3, P_th * 1e3, marker='.', markevery=markevery, markersize=3, linestyle='none', label="Signal, analytical solution")
-plt.plot(z * 1e-3, signal_power_p[:, 0] * 1e3, label="Pump, simulation")
-plt.plot(z*1e-3, Pp_th * 1e3, marker='.', markevery=markevery, markersize=3, linestyle='none', label="Pump, analytical solution")
+plt.plot(z*1e-3, (signal_power_s) * 1e3, label="Signal, simulation")
+plt.plot(z * 1e-3, signal_power_p * 1e3, label="Pump, simulation")
 # plt.plot(z*1e-3, attenuation_signal * 1e3, linestyle='dotted', color='black')
 plt.grid(False, which='minor')
 plt.grid(False, which='minor')
@@ -209,7 +188,6 @@ plt.tight_layout()
 plt.figure(figsize=(10, 5))
 plt.subplot(121)
 plt.plot(z * 1e-3, signal_power_p * 1e3)
-plt.plot(z*1e-3, Pp_th * 1e3, marker='.', markevery=markevery, linestyle='none')
 plt.legend(fiber.mode_names(pump_wavelength), loc="best")
 plt.xlabel("Position [km]")
 plt.ylabel("Power [mW]")
@@ -217,7 +195,6 @@ plt.ylabel("Power [mW]")
 
 plt.subplot(122)
 plt.plot(z*1e-3, 30 + 10 * np.log10((signal_power_p)))
-plt.plot(z*1e-3, 30 + 10 * np.log10((Pp_th)), marker='.', markevery=markevery, linestyle='none', label="Undepleted pump solution")
 plt.legend(fiber.mode_names(pump_wavelength), loc="best")
 plt.xlabel("Position [km]")
 plt.ylabel("Power [dBm]")
@@ -261,6 +238,54 @@ plt.ylabel("Energy")
 plt.title("Total energy variation")
 plt.tight_layout()
 
+from polarization import plot_sphere
+
+
+def compute_stokes(E):
+    I = np.abs(E[:, 0] ** 2) + np.abs(E[:, 1]) ** 2
+    S1 = (np.abs(E[:, 0] ** 2) - np.abs(E[:, 1]) ** 2) / I
+    S2 = (2 * np.real(E[:, 0] * np.conj(E[:, 1]))) / I
+    S3 = (-2 * np.imag(E[:, 0] * np.conj(E[:, 1]))) / I
+
+
+    return S1, S2, S3
+
+def random_sop(npts):
+    azimuth = np.random.uniform(low=0, high=2*np.pi, size=(npts,))
+    inclination = np.arccos(1 - 2*np.random.uniform(low=0, high=1, size=(npts,)))
+    radius = 1.
+    x = radius * np.sin(inclination) * np.sin(azimuth)
+    y = radius * np.sin(inclination) * np.cos(azimuth)
+    z = radius * np.cos(inclination)
+
+    return x, y, z
+
+
+init = 0
+length = args.fiber_length * 1e3
+start = round(init // args.dz)
+stop = round((init + length) // args.dz)
+
+s1s, s2s, s3s = compute_stokes(As)
+s1p, s2p, s3p = compute_stokes(Ap)
+
+x,y,z = random_sop(500)
+
+fig = plt.figure(figsize=(7, 5))
+ax = plt.axes(projection='3d')
+
+plot_sphere()   
+ax.plot3D(s1s[start:stop], s2s[start:stop], s3s[start:stop], label="Signal", linewidth=1.5)
+ax.plot3D(s1p[start:stop], s2p[start:stop], s3p[start:stop], label="Pump", linewidth=1.5)
+
+# ax.scatter3D(x,y,z)
+ax.set_xlabel(r"$S_1$")
+ax.set_ylabel(r"$S_2$")
+ax.set_zlabel(r"$S_3$")
+ax.xaxis.labelpad=15
+ax.yaxis.labelpad=15
+ax.zaxis.labelpad=15
+ax.legend()
 plt.show()
 
 # %%
