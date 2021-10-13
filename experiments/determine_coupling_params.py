@@ -8,6 +8,7 @@ import scipy.linalg
 from scipy.linalg.decomp import eig
 from fiber import StepIndexFiber
 
+
 def assert_error(target, actual, rtol=1e-3, str=""):
     error = np.abs((actual - target) / target)
     assert error < rtol, f"{str} Expected: {target} \tObserved: {actual}\tError: {error}"

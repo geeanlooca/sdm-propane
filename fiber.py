@@ -212,8 +212,11 @@ class StepIndexFiber(Fiber):
         return slice(start_idx_a, stop_idx_a), slice(start_idx_b, stop_idx_b)
 
     def load_raman_data(self, filename=None):
+
+        cwd = os.path.dirname(os.path.abspath(__file__))
         if filename is None:
-            filename = "raman_data.npz"
+            filename = os.path.join(cwd, "raman_data.npz")
+
         data = np.load(filename)
 
         self.frequency_shift = data["frequency"]

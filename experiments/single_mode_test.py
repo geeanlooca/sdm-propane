@@ -1,6 +1,10 @@
+import sys
+import os
+cwd = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(cwd))
+
 #%%
 import argparse
-import os
 import time
 
 import matplotlib.pyplot as plt
@@ -28,7 +32,8 @@ parser.add_argument("-v", "--verbose", action="store_true")
 args = parser.parse_args(args=[])
 
 
-fiber = StepIndexFiber(clad_index=1.46, delta=0.005, core_radius=6, clad_radius=60, data_path="fibers")
+fiber_path = os.path.join(os.path.dirname(cwd), "fibers")
+fiber = StepIndexFiber(clad_index=1.46, delta=0.005, core_radius=6, clad_radius=60, data_path=fiber_path)
 signal_wavelength = 1550
 pump_wavelength = 1459.45
 
@@ -178,7 +183,7 @@ Pp_th = Pp0 * np.exp(-alpha_p * z)
 
 
 #%%
-plt.style.use(['science', 'ieee', 'bright'])
+# plt.style.use(['science', 'ieee', 'bright'])
 
 
 plt.figure(figsize=(4, 2.5))
@@ -194,7 +199,7 @@ plt.legend(loc="best")
 plt.xlabel("Position [km]")
 plt.ylabel("Power [mW]")
 
-plt.savefig("/media/sf_onedrive/signal_power_undepleted_smf.eps")
+plt.savefig("prova2.pdf")
 # plt.subplot(122)
 # plt.plot(z*1e-3, 30 + 10 * np.log10((signal_power_s)))
 # plt.plot(z*1e-3, 30 + 10 * np.log10(P_th), marker='.', markevery=markevery, linestyle='none')
@@ -261,6 +266,6 @@ plt.ylabel("Energy")
 plt.title("Total energy variation")
 plt.tight_layout()
 
-plt.show()
 
+plt.savefig("prova.pdf")
 # %%
