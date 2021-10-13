@@ -1,5 +1,7 @@
 **/__pycache__
 **/*.so
+**/*.pdf
+sandbox/
 
 .vscode/
 
