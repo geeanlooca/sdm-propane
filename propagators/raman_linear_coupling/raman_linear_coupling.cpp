@@ -421,7 +421,18 @@ void compute_nonlinear_propagation(
                 for (size_t j = 0; j < num_modes_pump; j++)
                     for (size_t k = 0; k < num_modes_pump; k++)
                     {
-                        int index = get_4d_index(h, i, j, k, num_modes_pump, num_modes_pump, num_modes_pump, num_modes_pump);
+                        float nu = h;
+                        float mu = i;
+                        float eta = j;
+                        float rho = k;
+
+                        int index = get_4d_index(
+                            nu, rho, mu, eta, 
+                            num_modes_pump,
+                            num_modes_pump,
+                            num_modes_pump,
+                            num_modes_pump);
+
                         MKL_Complex16 N1 = Q1p[index] * y0p[i] * y0p[j] * std::conj(y0p[k]);
                         MKL_Complex16 N2 = Q2p[index] * std::conj(y0p[i]) * y0p[j] * y0p[k];
 
@@ -448,7 +459,18 @@ void compute_nonlinear_propagation(
                 for (size_t j = 0; j < num_modes_signal; j++)
                     for (size_t k = 0; k < num_modes_signal; k++)
                     {
-                        int index = get_4d_index(h, i, j, k, num_modes_signal, num_modes_signal, num_modes_signal, num_modes_signal);
+                        float nu = h;
+                        float mu = i;
+                        float eta = j;
+                        float rho = k;
+
+                        int index = get_4d_index(
+                            nu, rho, mu, eta, 
+                            num_modes_signal,
+                            num_modes_signal,
+                            num_modes_signal,
+                            num_modes_signal);
+
                         MKL_Complex16 N1 = Q1s[index] * y0s[i] * y0s[j] * std::conj(y0s[k]);
                         MKL_Complex16 N2 = Q2s[index] * std::conj(y0s[i]) * y0s[j] * y0s[k];
 
@@ -477,12 +499,35 @@ void compute_nonlinear_propagation(
                 for (size_t j = 0; j < num_modes_pump; j++)
                     for (size_t k = 0; k < num_modes_signal; k++)
                     {
-                        int index = get_4d_index(h, i, j, k, num_modes_pump, num_modes_signal, num_modes_pump, num_modes_signal);
+                        float nu = h;
+                        float mu = i;
+                        float eta = j;
+                        float rho = k;
 
+                        int index3 = get_4d_index(
+                            nu, eta, mu, rho, 
+                            num_modes_pump, 
+                            num_modes_pump, 
+                            num_modes_signal,
+                            num_modes_signal);
 
-                        MKL_Complex16 N3 = Q3p[index] * std::conj(y0s[i]) * y0s[j] * y0p[k];
-                        MKL_Complex16 N4 = Q4p[index] * y0s[i] * y0p[j] * std::conj(y0s[k]);
-                        MKL_Complex16 N5 = Q5p[index] * std::conj(y0s[i]) * y0p[j]  * y0s[k];
+                        int index4 = get_4d_index(
+                            nu, rho, mu, eta, 
+                            num_modes_pump,
+                            num_modes_signal,
+                            num_modes_signal,
+                            num_modes_pump);
+
+                        int index5 = get_4d_index(
+                            nu, rho, mu, eta,
+                            num_modes_pump,
+                            num_modes_signal,
+                            num_modes_signal,
+                            num_modes_pump);
+
+                        MKL_Complex16 N3 = Q3p[index3] * std::conj(y0s[i]) * y0s[j] * y0p[k];
+                        MKL_Complex16 N4 = Q4p[index4] * y0s[i] * y0p[j] * std::conj(y0s[k]);
+                        MKL_Complex16 N5 = Q5p[index5] * std::conj(y0s[i]) * y0p[j]  * y0s[k];
 
                         MKL_Complex16 contrib3 = E0 / 4 * (sigma + 2.0 * a0 + std::conj(bW)) * N3;
                         MKL_Complex16 contrib4 = E0 / 4 * (sigma + b0 + std::conj(bW)) * N4;
@@ -498,18 +543,43 @@ void compute_nonlinear_propagation(
     //
     // signal
     //
-    for (size_t h = 0; h < num_modes_signal; h++)
+    for (size_t h = 0; h < num_modes_signal; h++) // nu
     {
         MKL_Complex16 total_contribution = 0;
-        for (size_t i = 0; i < num_modes_pump; i++)
-            for (size_t j = 0; j < num_modes_pump; j++)
-                for (size_t k = 0; k < num_modes_signal; k++)
+        for (size_t i = 0; i < num_modes_pump; i++) // mu
+            for (size_t j = 0; j < num_modes_signal; j++) // eta
+                for (size_t k = 0; k < num_modes_pump; k++) // rho
                 {
-                    int index = get_4d_index(h, i, j, k, num_modes_signal, num_modes_pump, num_modes_pump, num_modes_signal);
 
-                    MKL_Complex16 N3 = Q3s[index] * std::conj(y0p[i]) * y0p[j] * y0s[k];
-                    MKL_Complex16 N4 = Q4s[index] * y0p[i] * y0s[j] * std::conj(y0p[k]);
-                    MKL_Complex16 N5 = Q5s[index] * std::conj(y0p[i]) * y0s[j]  * y0p[k];
+                    float nu = h;
+                    float mu = i;
+                    float eta = j;
+                    float rho = k;
+
+                    int index3 = get_4d_index(
+                        nu, eta, mu, rho, 
+                        num_modes_signal, 
+                        num_modes_signal, 
+                        num_modes_pump,
+                        num_modes_pump);
+
+                    int index4 = get_4d_index(
+                        nu, rho, mu, eta, 
+                        num_modes_signal,
+                        num_modes_pump,
+                        num_modes_pump,
+                        num_modes_signal);
+
+                    int index5 = get_4d_index(
+                        nu, rho, mu, eta,
+                        num_modes_signal,
+                        num_modes_pump,
+                        num_modes_pump,
+                        num_modes_signal);
+
+                    MKL_Complex16 N3 = Q3s[index3] * std::conj(y0p[i]) * y0p[j] * y0s[k];
+                    MKL_Complex16 N4 = Q4s[index4] * y0p[i] * y0s[j] * std::conj(y0p[k]);
+                    MKL_Complex16 N5 = Q5s[index5] * std::conj(y0p[i]) * y0s[j]  * y0p[k];
 
                     MKL_Complex16 contrib3 = E0 / 4 * (sigma + 2.0 * a0 + bW) * N3;
                     MKL_Complex16 contrib4 = E0 / 4 * (sigma + b0 + bW) * N4;
