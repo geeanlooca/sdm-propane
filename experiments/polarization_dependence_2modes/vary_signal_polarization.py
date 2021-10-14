@@ -174,7 +174,7 @@ class BirefringenceExperiment(Experiment):
         z, As, Ap = self.propagate(input_signal, input_pump)
 
         # downsample data 
-        df = self.fiber_length // self.args.sampling
+        df = int(self.fiber_length // self.args.sampling)
         z = z[::df]
         As = As[::df]
         Ap = Ap[::df]
@@ -189,10 +189,10 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--signal-power-per_group", default=1e-3, type=float)
     parser.add_argument("-L", "--fiber-length", default=50, type=float)
     parser.add_argument("-d", "--dz", default=1, type=float)
-    parser.add_argument("-U", "--undepleted-pump", action="store_true", type=bool)
-    parser.add_argument("-sc", "--signal-coupling", action="store_true", type=bool)
-    parser.add_argument("-pc", "--pump-coupling", action="store_true", type=bool)
-    parser.add_argument("-v", "--verbose", action="store_true", type=bool)
+    parser.add_argument("-U", "--undepleted-pump", action="store_true")
+    parser.add_argument("-sc", "--signal-coupling", action="store_true")
+    parser.add_argument("-pc", "--pump-coupling", action="store_true")
+    parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-N", "--runs", default=4, type=int)
     parser.add_argument("-Lc", "--correlation-length", default=10, type=float)
     parser.add_argument("-s", "--fiber-seed", default=0, type=int)
