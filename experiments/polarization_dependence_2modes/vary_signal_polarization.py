@@ -258,7 +258,7 @@ if __name__ == "__main__":
         plt.xlabel("Distance [km]")
         plt.ylabel("Pump power [dBm]")
         plt.tight_layout()
-        plt.savefig("mean_power.png", dpi=500)
+        plt.savefig(f"mean_power_{args.runs}runs.png", dpi=500)
 
         for (k, v) in vars(args).items():
             f[f"params/{k}"] = v
