@@ -9,6 +9,7 @@ experiments_path = os.path.dirname(current_path)
 root_path = os.path.dirname(experiments_path)
 experiments_path = sys.path.append(root_path)
 
+
 # %%
 import tqdm
 import argparse
@@ -38,6 +39,7 @@ class BirefringenceExperiment(Experiment):
         self.args = args
 
         fiber_path = os.path.join(root_path, "fibers")
+        print(fiber_path)
 
         self.fiber = StepIndexFiber(clad_index=1.46, delta=0.005,
                                     core_radius=6, clad_radius=60, data_path="fibers")
