@@ -144,7 +144,7 @@ class BirefringenceExperiment(Experiment):
 
         return z, As, Ap
 
-    def run(self, signal_sop, pump_sop):
+    def run(self, signal_sop, pump_sop, tasknum):
         """
         Parameters
         ----------
@@ -175,6 +175,8 @@ class BirefringenceExperiment(Experiment):
 
         Ps = np.abs(As) ** 2
         Pp = np.abs(Ap) ** 2
+
+        print(f"Task {n}/{args.runs} completed...")
 
 
         return z, As, Ap
@@ -208,7 +210,7 @@ if __name__ == "__main__":
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
-    params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs)]
+    params = [(polarization.random_hypersop(3), polarization.random_hypersop(3), i) for i in range(args.runs)]
 
     results = pool.starmap(exp.run, tqdm.tqdm(params))
 
