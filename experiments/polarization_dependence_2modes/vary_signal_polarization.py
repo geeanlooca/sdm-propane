@@ -176,7 +176,7 @@ class BirefringenceExperiment(Experiment):
         Ps = np.abs(As) ** 2
         Pp = np.abs(Ap) ** 2
 
-        print(f"Task {n}/{args.runs} completed...")
+        print(f"Task {tasknum}/{args.runs} completed...")
 
 
         return z, As, Ap
