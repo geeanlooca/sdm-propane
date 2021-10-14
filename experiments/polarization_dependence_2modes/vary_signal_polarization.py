@@ -195,18 +195,19 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-N", "--runs", default=4, type=int)
     parser.add_argument("-Lc", "--correlation-length", default=10, type=float)
-    parser.add_argument("-s", "--fiber-seed", default=0, type=int)
     parser.add_argument("--n2", default=4e-20, type=float)
     parser.add_argument("--gR", default=1e-13, type=float)
     parser.add_argument("--perturbation-beat-length", default=100, type=float)
+    parser.add_argument("--fiber-seed", default=None, type=int)
     parser.add_argument("--numpy-seed", default=None, type=int)
     parser.add_argument("--sampling", default=100, type=int)
 
     args = parser.parse_args()
 
     if args.numpy_seed:
-        from numpy.random import MT19937, RandomState, SeedSequence
-        rs = RandomState(MT19937(SeedSequence(int(args.numpy_seed))))
+        # from numpy.random import MT19937, RandomState, SeedSequence
+        # rs = RandomState(MT19937(SeedSequence(int(args.numpy_seed))))
+        np.random.seed(args.numpy_seed)
 
     exp = BirefringenceExperiment(args)
 
@@ -249,16 +250,20 @@ if __name__ == "__main__":
 
         plt.figure()
         plt.subplot(121)
-        plt.plot(z * 1e-3, 10 * np.log10(As * 1e3))
+        plt.plot(z * 1e-3, 10 * np.log10(Ps * 1e3))
         plt.xlabel("Distance [km]")
         plt.ylabel("Signal power [dBm]")
+        plt.ylim((-15, 5))
 
         plt.subplot(122)
-        plt.plot(z * 1e-3, 10 * np.log10(Ap * 1e3))
+        plt.plot(z * 1e-3, 10 * np.log10(Pp * 1e3))
         plt.xlabel("Distance [km]")
         plt.ylabel("Pump power [dBm]")
         plt.tight_layout()
-        plt.savefig(f"mean_power_{args.runs}runs.png", dpi=500)
+        plt.ylim((-30, 30))
+
+        plt.savefig(f"mean_power_{args.runs}runs-{timestamp}.png", dpi=100)
+
 
         for (k, v) in vars(args).items():
             f[f"params/{k}"] = v
