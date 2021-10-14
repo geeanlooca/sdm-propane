@@ -249,12 +249,12 @@ if __name__ == "__main__":
 
         plt.figure()
         plt.subplot(121)
-        plt.plot(z * 1e3, 10 * np.log10(As * 1e3))
+        plt.plot(z * 1e-3, 10 * np.log10(As * 1e3))
         plt.xlabel("Distance [km]")
         plt.ylabel("Signal power [dBm]")
 
         plt.subplot(122)
-        plt.plot(z * 1e3, 10 * np.log10(Ap * 1e3))
+        plt.plot(z * 1e-3, 10 * np.log10(Ap * 1e3))
         plt.xlabel("Distance [km]")
         plt.ylabel("Pump power [dBm]")
         plt.tight_layout()
