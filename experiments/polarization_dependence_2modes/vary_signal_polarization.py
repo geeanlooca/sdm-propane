@@ -222,8 +222,8 @@ if __name__ == "__main__":
         pump_sops = np.zeros_like(signal_sops)
 
         for i in range(args.runs):
-            signal_sops[i] = params[0][0]
-            pump_sops[i] = params[0][1]
+            signal_sops[i] = params[i][0]
+            pump_sops[i] = params[i][1]
 
         z = results[0][0]
         As = [ s for (_, s, _) in results]
