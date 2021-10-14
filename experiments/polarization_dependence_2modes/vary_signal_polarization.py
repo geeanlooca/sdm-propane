@@ -242,19 +242,19 @@ if __name__ == "__main__":
         pump_dset[:] = Ap
 
         As = np.mean(As, axis=0)
-        Ap = np.mean(As, axis=0)
+        Ap = np.mean(Ap, axis=0)
 
         Ps = np.abs(As) ** 2
         Pp = np.abs(Ap) ** 2
 
         plt.figure()
         plt.subplot(121)
-        plt.plot(z, 10 * np.log10(As * 1e3))
+        plt.plot(z * 1e3, 10 * np.log10(As * 1e3))
         plt.xlabel("Distance [km]")
         plt.ylabel("Signal power [dBm]")
 
         plt.subplot(122)
-        plt.plot(z, 10 * np.log10(Ap * 1e3))
+        plt.plot(z * 1e3, 10 * np.log10(Ap * 1e3))
         plt.xlabel("Distance [km]")
         plt.ylabel("Pump power [dBm]")
         plt.tight_layout()
