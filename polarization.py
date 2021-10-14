@@ -87,6 +87,28 @@ def random_sop(npts=1, astuple=False):
     else:
         return np.array([x,y,z])
 
+def random_hypersop(nmodes):
+    """Generate a vector of states of polarization of the number of specified modes."""
+    sop = np.zeros((nmodes, 3))
+    for i in range(nmodes):
+        sop[i] = random_sop().squeeze()
+
+    return sop
+
+def random_hyperjones(nmodes):
+    """Generate a generalized Jones vector with random polarization for each mode."""
+    hsop = random_hypersop(nmodes)
+    hjones = hyperstokes_to_jones(hsop)
+    return hjones
+
+def hyperstokes_to_jones(hsop):
+    """Convert an hyper-state of polarization to the equivalent Jones vector."""
+    nmodes = hsop.shape[0]
+    
+    jones = [ stokes_to_jones(hsop[i]) for i in range(nmodes)]
+
+    return np.hstack(jones)
+
 def plot_stokes(sop, **kwargs):
     ax = plt.gca()
     ax.scatter(sop[0],  sop[1], sop[2], **kwargs)

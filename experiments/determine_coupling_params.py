@@ -1,3 +1,7 @@
+import sys
+import os
+cwd = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(cwd))
 import argparse
 import logging
 import matplotlib.pyplot as plt
