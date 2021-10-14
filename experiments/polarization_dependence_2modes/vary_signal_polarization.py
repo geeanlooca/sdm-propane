@@ -144,7 +144,7 @@ class BirefringenceExperiment(Experiment):
 
         return z, As, Ap
 
-    def run(self, signal_sop, pump_sop, tasknum):
+    def run(self, signal_sop, pump_sop):
         """
         Parameters
         ----------
@@ -176,9 +176,6 @@ class BirefringenceExperiment(Experiment):
         Ps = np.abs(As) ** 2
         Pp = np.abs(Ap) ** 2
 
-        print(f"Task {tasknum}/{args.runs} completed...")
-
-
         return z, As, Ap
 
 
@@ -208,33 +205,34 @@ if __name__ == "__main__":
 
     exp = BirefringenceExperiment(args)
 
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
-    params = [(polarization.random_hypersop(3), polarization.random_hypersop(3), i) for i in range(args.runs)]
 
-    results = pool.starmap(exp.run, tqdm.tqdm(params))
+    for x in range(10):
+        print(f"Batch {x+1}/10", flush=True)
+        pool = multiprocessing.Pool(multiprocessing.cpu_count())
+        params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs)]
+        results = pool.starmap(exp.run, tqdm.tqdm(params))
+        import datetime
+        timestamp = datetime.datetime.now().replace(microsecond=0).isoformat()
+        with h5py.File(f"results-{timestamp}.h5", "a") as f:
 
-    import datetime
-    timestamp = datetime.datetime.now().replace(microsecond=0).isoformat()
-    with h5py.File(f"results-{timestamp}.h5", "a") as f:
+            signal_sops = np.zeros((args.runs, 3, 3), dtype=np.complex128)
+            pump_sops = np.zeros_like(signal_sops)
 
-        signal_sops = np.zeros((args.runs, 3, 3), dtype=np.complex128)
-        pump_sops = np.zeros_like(signal_sops)
+            for i in range(args.runs):
+                signal_sops[i] = params[i][0]
+                pump_sops[i] = params[i][1]
 
-        for i in range(args.runs):
-            signal_sops[i] = params[i][0]
-            pump_sops[i] = params[i][1]
+            z = results[0][0]
+            As = [ s for (_, s, _) in results]
+            Ap = [ p for (_, _, p) in results]
 
-        z = results[0][0]
-        As = [ s for (_, s, _) in results]
-        Ap = [ p for (_, _, p) in results]
+            f["signal_sops"] = signal_sops
+            f["pump_sops"] = pump_sops
+            f["z"] = z
+            f["signal"] = As
+            f["pump"] = Ap
 
-        f["signal_sops"] = signal_sops
-        f["pump_sops"] = pump_sops
-        f["z"] = z
-        f["signal"] = As
-        f["pump"] = Ap
-
-        for (k, v) in vars(args).items():
-            f[f"params/{k}"] = v
+            for (k, v) in vars(args).items():
+                f[f"params/{k}"] = v
 
