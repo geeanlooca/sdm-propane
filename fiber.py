@@ -70,8 +70,6 @@ class StepIndexFiber(Fiber):
                          wavelength=wavelength, mesh_size=mesh_size)
 
         filepath = os.path.join(data_path, filename)
-        print(filepath, filename)
-        print(os.listdir(filepath))
 
         if not modes:
             filepath, *_ = glob.glob(filepath)
