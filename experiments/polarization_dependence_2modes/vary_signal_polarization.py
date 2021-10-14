@@ -11,24 +11,22 @@ experiments_path = sys.path.append(root_path)
 
 
 # %%
-import tqdm
 import argparse
+import datetime
+import multiprocessing
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-
 from scipy.constants import lambda2nu
+import tqdm
 
 from fiber import StepIndexFiber
-
 import polarization
-from polarization import random_hypersop, stokes_to_jones, random_sop, plot_sphere, compute_stokes, plot_stokes, hyperstokes_to_jones
+from polarization import hyperstokes_to_jones
 import raman_linear_coupling
 
-from experiment import Experiment, ParallelExperiment
-
-import multiprocessing
+from experiment import Experiment
 
 
 class BirefringenceExperiment(Experiment):
@@ -205,34 +203,37 @@ if __name__ == "__main__":
 
     exp = BirefringenceExperiment(args)
 
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs)]
+    results = pool.starmap(exp.run, tqdm.tqdm(params))
+    timestamp = datetime.datetime.now().replace(microsecond=0).isoformat()
 
+    with h5py.File(f"results-{timestamp}.h5", "a") as f:
+        signal_sops = np.zeros((args.runs, 3, 3), dtype=np.complex128)
+        pump_sops = np.zeros_like(signal_sops)
 
-    for x in range(10):
-        print(f"Batch {x+1}/10", flush=True)
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs)]
-        results = pool.starmap(exp.run, tqdm.tqdm(params))
-        import datetime
-        timestamp = datetime.datetime.now().replace(microsecond=0).isoformat()
-        with h5py.File(f"results-{timestamp}.h5", "a") as f:
+        for i in range(args.runs):
+            signal_sops[i] = params[i][0]
+            pump_sops[i] = params[i][1]
 
-            signal_sops = np.zeros((args.runs, 3, 3), dtype=np.complex128)
-            pump_sops = np.zeros_like(signal_sops)
+        z = results[0][0]
+        As = np.stack([ s for (_, s, _) in results])
+        Ap = np.stack([ p for (_, _, p) in results])
 
-            for i in range(args.runs):
-                signal_sops[i] = params[i][0]
-                pump_sops[i] = params[i][1]
+        signal_sop_dset = f.create_dataset("signal_sops", dtype=np.complex128, shape=signal_sops.shape, compression="gzip")
+        signal_sop_dset[:] = signal_sops
+        pump_sop_dset = f.create_dataset("pump_sops", dtype=np.complex128, shape=pump_sops.shape, compression="gzip")
+        pump_sop_dset[:] = pump_sops
 
-            z = results[0][0]
-            As = [ s for (_, s, _) in results]
-            Ap = [ p for (_, _, p) in results]
+        z_dset = f.create_dataset("z", dtype=np.float64, shape=z.shape, compression="gzip")
+        z_dset[:] = z
 
-            f["signal_sops"] = signal_sops
-            f["pump_sops"] = pump_sops
-            f["z"] = z
-            f["signal"] = As
-            f["pump"] = Ap
+        signal_dset = f.create_dataset("signal", dtype=np.complex128, shape=As.shape, compression="gzip")
+        pump_dset = f.create_dataset("pump", dtype=np.complex128, shape=Ap.shape, compression="gzip")
 
-            for (k, v) in vars(args).items():
-                f[f"params/{k}"] = v
+        signal_dset[:] = As
+        pump_dset[:] = Ap
+
+        for (k, v) in vars(args).items():
+            f[f"params/{k}"] = v
 
