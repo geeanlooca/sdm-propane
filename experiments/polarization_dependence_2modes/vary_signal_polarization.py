@@ -260,7 +260,7 @@ if __name__ == "__main__":
         plt.xlabel("Distance [km]")
         plt.ylabel("Pump power [dBm]")
         plt.tight_layout()
-        plt.ylim((-30, 30))
+        plt.ylim((-60, -25))
 
         plt.savefig(f"mean_power_{args.runs}runs-{timestamp}.png", dpi=100)
 
