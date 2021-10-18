@@ -76,6 +76,7 @@ def cmd_parser():
     parser.add_argument("-B", "--batches", default=1, type=int)
     parser.add_argument("-N", "--runs-per-batch", default=4, type=int)
     parser.add_argument("-f", "--forever", action="store_true", help="Run an infinite while loop")
+    parser.add_argument("--sigma", default=None, help="Kerr parameter")
 
     return parser
 

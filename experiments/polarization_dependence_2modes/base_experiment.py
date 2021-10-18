@@ -107,6 +107,9 @@ class VaryPolarizationExperiment(Experiment):
         self.beta_p = self.fiber.propagation_constants(
             wavelength=self.pump_wavelength, remove_mean=True)
 
+        if self.args.sigma:
+            self.nonlinear_params['sigma'] = 0
+
         self.nonlinear_params['aW'] = np.conj(self.nonlinear_params['aW'])
         self.nonlinear_params['bW'] = np.conj(self.nonlinear_params['bW'])
 
