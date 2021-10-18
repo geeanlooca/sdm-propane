@@ -36,7 +36,7 @@ if __name__ == "__main__":
     selected_params = ["fiber_length", "correlation_length", "perturbation_beat_length", "dz"]
     params_string = build_params_string(args, selected_params)
 
-    exp_name = "fixed_parallel_polarizations"
+    exp_name = "fixed_parallel_polarizations_LP11_pumping"
     filename = f"{exp_name}-{params_string}.h5"
 
 
@@ -52,7 +52,6 @@ if __name__ == "__main__":
 
     # generate parallel input polarizations between signal and pump
     pol_angle = 0
-    # pol_angle = np.pi/4
     s_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
     p_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
 

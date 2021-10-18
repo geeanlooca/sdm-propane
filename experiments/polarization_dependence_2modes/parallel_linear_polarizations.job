@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH -J par_lin_pol_LP11_pumping.txt
+#SBATCH -o par_lin_pol_LP11_pumping_output.txt
+#SBATCH -e par_lin_pol_LP11_pumping_error.txt
+#SBATCH -n 32
+#SBATCH -p allgroups
+#SBATCH --mem 16G
+
+srun singularity exec ../../ubuntu_mkl_1.0.sif python parallel_linear_polarizations.py --perturbation-beat-length 1 \
+    --correlation-length 10 --dz 1 --fiber-length 50 --total-pump-power 1000 --signal-power-per-mode 1e-4 \
+    --sampling 250 --runs-per-batch 128 --forever

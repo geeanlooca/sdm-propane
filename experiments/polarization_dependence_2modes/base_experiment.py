@@ -95,7 +95,7 @@ class VaryPolarizationExperiment(Experiment):
         self.num_modes_p = self.fiber.num_modes(self.pump_wavelength)
 
         self.Pp0 = args.total_pump_power * 1e-3
-        self.Ps0 = args.signal_power_per_group * 1e-3
+        self.Ps0 = args.signal_power_per_mode * 1e-3
 
         pump_attenuation = 0.2 * 1e-3 * np.log(10) / 10
         signal_attenuation = 0.2 * 1e-3 * np.log(10) / 10
