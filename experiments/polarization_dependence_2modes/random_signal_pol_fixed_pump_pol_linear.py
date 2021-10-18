@@ -31,6 +31,7 @@ def dBm(x):
 if __name__ == "__main__":
 
     parser = cmd_parser()
+
     args = parser.parse_args()
 
     selected_params = ["fiber_length", "correlation_length", "perturbation_beat_length", "dz"]
@@ -50,13 +51,6 @@ if __name__ == "__main__":
     pump_manager = OnlineMeanManager("Pump power")
     output_signal_manager = OnlineMeanManager("Output signal power")
 
-    # generate parallel input polarizations between signal and pump
-    pol_angle = 0
-    s_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
-    p_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
-
-    params = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
-
     write_metadata(filename, exp)
 
     def condition(i, args):
@@ -67,9 +61,12 @@ if __name__ == "__main__":
             print(f"Batch {i}/{args.batches}...")
             return i < args.batches
 
-
+    pump_sop_linear = polarization.linear_hyperstokes(3)
 
     while condition(batch_idx, args):
+
+        s_sop = polarization.random_hypersop(3)
+        params = [(s_sop, pump_sop_linear) for _ in range(args.runs_per_batch)]
 
         # propagate 
         results = pool.starmap(exp.run, params)
@@ -124,3 +121,5 @@ if __name__ == "__main__":
         plt.pause(0.05)
 
         batch_idx += 1
+
+# %%

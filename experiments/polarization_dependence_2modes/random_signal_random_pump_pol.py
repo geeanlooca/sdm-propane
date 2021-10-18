@@ -52,10 +52,8 @@ if __name__ == "__main__":
 
     # generate parallel input polarizations between signal and pump
     pol_angle = 0
-    s_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
-    p_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
 
-    params = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
+
 
     write_metadata(filename, exp)
 
@@ -68,8 +66,10 @@ if __name__ == "__main__":
             return i < args.batches
 
 
-
     while condition(batch_idx, args):
+        s_sop = polarization.random_hypersop(3)
+        p_sop = polarization.random_hypersop(3)
+        params = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
 
         # propagate 
         results = pool.starmap(exp.run, params)
@@ -91,7 +91,6 @@ if __name__ == "__main__":
         plt.figure(1)
         output_signal_manager.plot(f"{exp_name}-output_power_convergence-{params_string}.png")
         plt.pause(0.05)
-
 
         plt.figure(2)
         plt.cla()

@@ -62,6 +62,7 @@ def write_metadata(filename, experiment):
 
 def cmd_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--experiment-name", default="", type=str)
     parser.add_argument("-P", "--total-pump-power", default=1000.0, type=float)
     parser.add_argument("-p", "--signal-power-per-mode", default=1e-3, type=float)
     parser.add_argument("-L", "--fiber-length", default=50, type=float)
