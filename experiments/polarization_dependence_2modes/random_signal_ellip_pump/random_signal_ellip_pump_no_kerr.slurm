@@ -5,7 +5,7 @@
 
 Lk=5
 
-EXP_NAME = random_signal_ellip_pump_no_kerr_Lk=${Lk}m
+EXP_NAME=random_signal_ellip_pump_no_kerr_Lk=${Lk}m
 OUTPUT_FILE=${EXP_NAME}_out.txt
 ERR_FILE=${EXP_NAME}_err.txt
 
