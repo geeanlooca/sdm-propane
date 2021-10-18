@@ -9,10 +9,7 @@ EXP_NAME=random_signal_random_pump_Lk=${Lk}m
 OUTPUT_FILE=${EXP_NAME}_out.txt
 ERR_FILE=${EXP_NAME}_err.txt
 
-srun -J $EXP_NAME \ 
-     -o $OUTPUT_FILE \
-     -e $ERR_FILE \
-    singularity exec ../../ubuntu_mkl_1.0.sif python -u -W  ignore ../random_signal_random_pump_pol.py \
+srun -J $EXP_NAME -o $OUTPUT_FILE -e $ERR_FILE singularity exec ../../../ubuntu_mkl_1.0.sif python -u -W  ignore ../random_signal_random_pump_pol.py \
         --experiment-name $EXP_NAME \
         --perturbation-beat-length ${Lk} \
         --correlation-length 10 --dz 1 
