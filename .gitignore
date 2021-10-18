@@ -6,3 +6,5 @@ sandbox/
 .vscode/
 
 *.h5
+
+*.png
