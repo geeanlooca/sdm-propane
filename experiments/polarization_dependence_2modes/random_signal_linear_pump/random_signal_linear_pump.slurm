@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -c 32
+#SBATCH -c 16
 #SBATCH -p allgroups
 #SBATCH --mem 16G
 
