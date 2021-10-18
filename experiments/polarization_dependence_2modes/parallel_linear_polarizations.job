@@ -8,4 +8,4 @@
 
 srun singularity exec ../../ubuntu_mkl_1.0.sif python -u -W  ignore parallel_linear_polarizations.py --perturbation-beat-length 1 \
     --correlation-length 10 --dz 1 --fiber-length 50 --total-pump-power 1000 --signal-power-per-mode 1e-4 \
-    --sampling 250 --runs-per-batch 128 --forever
+    --sampling 250 --runs-per-batch 32 --forever
