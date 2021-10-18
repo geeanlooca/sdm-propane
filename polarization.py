@@ -3,23 +3,18 @@ import matplotlib.pyplot as plt
 
 def stokes_to_jones(sop):
 
-    ndim = sop.ndim
-
-    if ndim == 1:
-        sop_ = np.reshape(sop, (sop.size,1))
-    else:
-        sop_ = sop
+    sop_ = np.atleast_2d(sop)
 
     # sops concatenated along second dimension
-    points = sop_.shape[1]
+    ndim = sop_.shape[0]
 
-    output = np.zeros((2, points), dtype=np.complex)
+    output = np.zeros((ndim, 2), dtype=np.complex)
 
-    Q=sop_[0]
-    U=sop_[1]
-    V=sop_[2]
+    Q=sop_[:, 0]
+    U=sop_[:, 1]
+    V=sop_[:, 2]
 
-    for x in range(points):
+    for x in range(ndim):
         A=np.sqrt((1+Q[x])/2)
 
         if A == 0:
@@ -27,8 +22,8 @@ def stokes_to_jones(sop):
         else:
             B = U[x]/(2*A)+1j*V[x]/(2*A)
         
-        output[0, x] = A
-        output[1, x] = B
+        output[x, 0] = A
+        output[x, 1] = B
     
     return output.squeeze()
 
@@ -50,18 +45,16 @@ def linear_hyperstokes(modes, direction="x", angle=None, num=1):
     return np.tile(x, (1, modes)).squeeze()
 
 def compute_stokes(E):
-    ndim = E.ndim
-    if ndim == 1:
-        S = np.zeros((3,))
-    else:
-        S = np.zeros((3, E.shape[1]))
+    E_ = np.atleast_2d(E)
+    ndim = E.shape[0]
+    S = np.zeros((ndim, 3))
 
-    I = np.abs(E[0] ** 2) + np.abs(E[1]) ** 2
-    S[0] = (np.abs(E[0] ** 2) - np.abs(E[1]) ** 2) / I
-    S[1] = (2 * np.real(E[0] * np.conj(E[1]))) / I
-    S[2] = (-2 * np.imag(E[0] * np.conj(E[1]))) / I
+    I = np.abs(E_[:, 0] ** 2) + np.abs(E_[:, 1]) ** 2
+    S[:, 0] = (np.abs(E_[:, 0] ** 2) - np.abs(E_[:, 1]) ** 2) / I
+    S[:, 1] = (2 * np.real(E_[:, 0] * np.conj(E_[:, 1]))) / I
+    S[:, 2] = (-2 * np.imag(E_[:, 0] * np.conj(E_[:, 1]))) / I
 
-    return S
+    return S.squeeze()
 
 def plot_sphere(pts=30):
     ax = plt.gca()
@@ -138,7 +131,7 @@ def hyperstokes_to_jones(hsop):
 
 def plot_stokes(sop, **kwargs):
     ax = plt.gca()
-    ax.scatter(sop[0],  sop[1], sop[2], **kwargs)
+    ax.scatter(sop.T[0],  sop.T[1], sop.T[2], **kwargs)
 
 def plot_stokes_trajectory(sop, plot_sphere=False, jones=False, plot_kw={}, scatter_kw={}):
     ax = plt.gca()
