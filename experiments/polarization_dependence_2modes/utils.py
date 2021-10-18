@@ -34,7 +34,7 @@ def process_results(results, inputs, filename):
         pump_sop_dset[:] = pump_sops
 
         # only save the positions once
-        if not "z" in f:
+        if batch_idx == 1:
             z_dset = f.create_dataset("z", dtype=np.float64, shape=z.shape, compression="gzip")
             z_dset[:] = z
 

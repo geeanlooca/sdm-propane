@@ -6,8 +6,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 #%%
 
-filename = "results-2021-10-15T22:02:32.h5"
-filename = "results-total_pump_power=1000.0;signal_power_per_group=0.001;fiber_length=5.0;dz=0.1;correlation_length=50.0;perturbation_beat_length=10.0;n2=4e-20;gR=1e-13;fiber_seed=None;numpy_seed=0;sampling=50;batches=500;runs=4-2021-10-16T04:01:02.h5"
+import sys
+filename = sys.argv[-1]
 
 f = h5py.File(filename, "r")
 z = f["z"][:]
@@ -113,16 +113,6 @@ plt.title("Power in each spatial mode, at fiber end")
 plt.tight_layout()
 # %%
 
-# positions = [20, 40, 80, 100]
-
-# nbins = 50
-# for p in positions:
-#     plt.figure()
-#     for x in range(Ps_pol.shape[-1]):
-#         n,bins, patchs = plt.hist(dBm(Ps_pol[:, p, x]), 50, density=False, alpha=0.5)
-#     plt.xlabel("Power [dBm]")
-#     plt.ylabel("Probability")
-#     plt.title(f"{p*1e-3} km")
 # %%
 
 plt.show()
