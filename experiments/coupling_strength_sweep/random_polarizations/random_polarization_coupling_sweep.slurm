@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH -c 16
+#SBATCH -c 32
 #SBATCH -p allgroups
 #SBATCH --mem 16G
-#SBATCH --array=0-19%4
+#SBATCH --array=0-19%2
 
 
 MAX_FIBERS=5000
@@ -16,7 +16,7 @@ srun -o $OUTPUT_FILE -e $ERR_FILE singularity exec ../../../ubuntu_mkl_1.0.sif p
         --fiber-length 50 --total-pump-power 1000 \
         --signal-power-per-mode 1e-4 \
         --sampling 1000 \
-        --runs-per-batch 16 \
+        --runs-per-batch 32 \
         --min-beat-length ${LK_MIN} \
         --max-beat-length ${LK_MAX} \
         --max-fibers ${MAX_FIBERS}
