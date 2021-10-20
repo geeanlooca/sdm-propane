@@ -46,7 +46,6 @@ if __name__ == "__main__":
     selected_params = ["fiber_length", "correlation_length", "perturbation_beat_length", "dz"]
     params_string = build_params_string(args, selected_params)
 
-    exp_name = args.experiment_name
     exp_name  = "random_polarizations_Lk_sweep"
     filename = f"-{params_string}.h5"
 

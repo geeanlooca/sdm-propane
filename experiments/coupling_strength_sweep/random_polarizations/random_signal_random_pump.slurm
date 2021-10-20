@@ -2,18 +2,21 @@
 #SBATCH -c 16
 #SBATCH -p allgroups
 #SBATCH --mem 16G
+#SBATCH --array-task=0-19%4
 
-Lk=1
 
-EXP_NAME=random_signal_random_pump_Lk=${Lk}m
-OUTPUT_FILE=${EXP_NAME}_out.txt
+MAX_FIBERS=5000
+LK_MIN=5e-5
+LK_MAX=3e1
+OUTPUT_FILE=random_polarization_coupling_sweep_%A_%a_out.txt
 ERR_FILE=${EXP_NAME}_err.txt
 
-srun -o $OUTPUT_FILE -e $ERR_FILE singularity exec ../../../ubuntu_mkl_1.0.sif python -u -W  ignore ../random_signal_random_pump_pol.py \
-        --experiment-name $EXP_NAME \
-        --perturbation-beat-length ${Lk} \
+srun -o $OUTPUT_FILE -e $ERR_FILE singularity exec ../../../ubuntu_mkl_1.0.sif python -u -W  ignore ../random_signal_random_pump_sweep.py \
         --correlation-length 10 --dz 1 \
         --fiber-length 50 --total-pump-power 1000 \
         --signal-power-per-mode 1e-4 \
-        --sampling 250 \
-        --runs-per-batch 32 --forever
+        --sampling 1000 \
+        --runs-per-batch 16 \
+        --min-beat-length ${LK_MIN} \
+        --max-beat-length ${LK_MAX} \
+        --max-fibers ${MAX_FIBERS}

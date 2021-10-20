@@ -79,7 +79,7 @@ def cmd_parser():
     parser.add_argument("-N", "--runs-per-batch", default=4, type=int)
     parser.add_argument("-f", "--forever", action="store_true", help="Run an infinite while loop")
     parser.add_argument("--sigma", default=None, help="Kerr parameter")
-    parser.add_argument("--max-fibers", default=None)
+    parser.add_argument("--max-fibers")
 
     return parser
 
