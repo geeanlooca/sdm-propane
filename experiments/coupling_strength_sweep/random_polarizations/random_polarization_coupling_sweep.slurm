@@ -2,11 +2,11 @@
 #SBATCH -c 32
 #SBATCH -p allgroups
 #SBATCH --mem 16G
-#SBATCH --array=0-19%2
+#SBATCH --array=0-14%2
 
 
 MAX_FIBERS=5000
-LK_MIN=5e-5
+LK_MIN=1e-3
 LK_MAX=3e1
 OUTPUT_FILE=random_polarization_coupling_sweep_%a_out.txt
 ERR_FILE=random_polarization_coupling_sweep_%a_err.txt
