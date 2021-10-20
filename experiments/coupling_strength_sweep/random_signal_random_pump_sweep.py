@@ -57,23 +57,25 @@ if __name__ == "__main__":
     batch_idx = 0
 
     signal_manager = OnlineMeanManager("Signal power")
-    pump_manager = OnlineMeanManager("Pump power")
     output_signal_manager = OnlineMeanManager("Output signal power")
 
 
     write_metadata(filename, exp)
 
     def condition(i, args):
+
+        simulated_fibers = args.runs_per_batch * i
         if args.forever:
-            print(f"Batch {i}...")
+            string = f"Batch {i}...\t{simulated_fibers} fibers..."
             return True
         elif args.max_fibers:
             batches = np.ceil(args.max_fibers / args.runs_per_batch)
+            string = f"Batch {i}/{batches}...\t{simulated_fibers} fibers..."
             return i < batches
         else:
-            print(f"Batch {i}/{args.batches}...")
+            string = f"Batch {i}/{args.batches}...\t{simulated_fibers} fibers..."
+            print(string)
             return i < args.batches
-
 
     while condition(batch_idx, args):
         params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs_per_batch)]
@@ -92,41 +94,30 @@ if __name__ == "__main__":
 
 
         output_signal_manager.update(dBm(Ps_pol[:,-1,:]), accumulate=True)
-        signal_manager.update(Ps_pol, accumulate=False)
-        pump_manager.update(Pp_pol, accumulate=False)
+        signal_manager.update(dBm(Ps_pol), accumulate=False)
 
         plt.figure(1)
         output_signal_manager.plot(f"{exp_name}-output_power_convergence-{params_string}.png")
         plt.pause(0.05)
 
         plt.figure(2)
-        plt.cla()
+        plt.clf()
+        plt.subplot(121)
 
-        above = dBm(signal_manager.mean + signal_manager.std)
-        below = dBm(signal_manager.mean - signal_manager.std)
-        plt.plot(z * 1e-3, dBm(signal_manager.mean))
-        for x in range(signal_manager.mean.shape[-1]):
-            plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3)
+        plt.plot(z * 1e-3, signal_manager.mean)
         plt.xlabel("Position [km]")
         plt.ylabel("Power [dBm]")
-        plt.title("Average signal power and standard dev. in each spatial mode")
         plt.tight_layout()
+
+
+        plt.subplot(122)
+        plt.plot(z * 1e-3, signal_manager.std)
+        plt.xlabel("Position [km]")
+        plt.ylabel("Power [dBm]")
+
+        plt.suptitle("Average signal power and standard dev. in each spatial mode")
+
         plt.savefig(f"{exp_name}-mean_signal_power-{params_string}.png")
-        plt.pause(0.05)
-
-        plt.figure(3)
-        plt.cla()
-
-        above = dBm(pump_manager.mean + pump_manager.std)
-        below = dBm(pump_manager.mean - pump_manager.std)
-        plt.plot(z * 1e-3, dBm(pump_manager.mean))
-        for x in range(pump_manager.mean.shape[-1]):
-            plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3)
-        plt.xlabel("Position [km]")
-        plt.ylabel("Power [dBm]")
-        plt.title("Average pump power and standard dev. in each spatial mode")
         plt.tight_layout()
-        plt.savefig(f"{exp_name}-mean_pump_power-{params_string}.png")
-        plt.pause(0.05)
 
         batch_idx += 1
