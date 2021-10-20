@@ -9,7 +9,7 @@ MAX_FIBERS=5000
 LK_MIN=5e-5
 LK_MAX=3e1
 OUTPUT_FILE=random_polarization_coupling_sweep_%A_%a_out.txt
-ERR_FILE=${EXP_NAME}_err.txt
+ERR_FILE=random_polarization_coupling_sweep_%A_%a_err.txt
 
 srun -o $OUTPUT_FILE -e $ERR_FILE singularity exec ../../../ubuntu_mkl_1.0.sif python -u -W  ignore ../random_signal_random_pump_sweep.py \
         --correlation-length 10 --dz 1 \
