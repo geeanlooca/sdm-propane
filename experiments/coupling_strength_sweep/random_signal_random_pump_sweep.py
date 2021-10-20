@@ -47,7 +47,7 @@ if __name__ == "__main__":
     params_string = build_params_string(args, selected_params)
 
     exp_name  = "random_polarizations_Lk_sweep"
-    filename = f"-{params_string}.h5"
+    filename = f"{exp_name}-{params_string}.h5"
 
 
     exp = VaryPolarizationExperiment(args)
