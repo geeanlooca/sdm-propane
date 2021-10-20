@@ -72,6 +72,7 @@ if __name__ == "__main__":
         elif args.max_fibers:
             batches = np.ceil(args.max_fibers / args.runs_per_batch)
             string = f"Batch {i}/{batches}...\t{simulated_fibers} fibers..."
+            print(string)
             return i < batches
         else:
             string = f"Batch {i}/{args.batches}...\t{simulated_fibers} fibers..."
