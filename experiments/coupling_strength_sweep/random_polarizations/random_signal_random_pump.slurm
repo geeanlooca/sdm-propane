@@ -2,7 +2,7 @@
 #SBATCH -c 16
 #SBATCH -p allgroups
 #SBATCH --mem 16G
-#SBATCH --array-task=0-19%4
+#SBATCH --array=0-19%4
 
 
 MAX_FIBERS=5000
