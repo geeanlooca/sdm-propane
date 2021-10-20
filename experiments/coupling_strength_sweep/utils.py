@@ -80,7 +80,7 @@ def cmd_parser():
     parser.add_argument("--sigma", default=None, help="Kerr parameter")
     parser.add_argument("--min-beat-length", default=1e-5, type=float)
     parser.add_argument("--max-beat-length", default=1e1, type=float)
-    parser.add_argument("--max-fibers", default=None)
+    parser.add_argument("--max-fibers", default=None, type=int)
 
     return parser
 
