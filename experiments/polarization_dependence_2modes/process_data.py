@@ -6,8 +6,15 @@ from mpl_toolkits.mplot3d import Axes3D
 
 #%%
 
-import sys
-filename = sys.argv[-1]
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("filename")
+args = parser.parse_args()
+filename = args.filename
+
+mode_names = ["LP01", "LP11a", "LP11b"]
+pol_names = ["LP01x", "LP01y", "LP11ax", "LP011ay", "LP11bx", "LP11by"]
 
 f = h5py.File(filename, "r")
 z = f["z"][:]
@@ -51,10 +58,11 @@ above = dBm(Ps_pol.mean(axis=0) + Ps_pol.std(axis=0))
 below = dBm(Ps_pol.mean(axis=0) - Ps_pol.std(axis=0))
 plt.plot(z * 1e-3, dBm(Ps_pol.mean(axis=0)))
 for x in range(Ps_avg_pol.shape[-1]):
-    plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3)
+    plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3, label=mode_names[x])
 plt.xlabel("Position [km]")
 plt.ylabel("Power [dBm]")
 plt.title("Average power and standard dev. in each spatial mode")
+plt.legend()
 plt.tight_layout()
 
 plt.figure()
@@ -62,6 +70,7 @@ plt.plot(z * 1e-3, Ps_pol_std)
 plt.xlabel("Position [km]")
 plt.ylabel("Standard deviation [dBm]")
 plt.title("Power standard dev. in each spatial mode")
+plt.legend(mode_names)
 plt.tight_layout()
 
 #%%
@@ -73,11 +82,12 @@ above = dBm(Ps.mean(axis=0) + Ps.std(axis=0))
 below = dBm(Ps.mean(axis=0) - Ps.std(axis=0))
 plt.plot(z * 1e-3, dBm(Ps.mean(axis=0)))
 
-for x in range(Ps_avg_pol.shape[-1]):
+for x in range(Ps.shape[-1]):
     plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3)
 plt.xlabel("Position [km]")
 plt.ylabel("Power [dBm]")
 plt.title("Average power and standard dev. in each polarization")
+plt.legend(pol_names)
 plt.tight_layout()
 
 plt.figure()
@@ -85,6 +95,7 @@ plt.plot(z * 1e-3, dBm(Ps).std(axis=0))
 plt.xlabel("Position [km]")
 plt.ylabel("Standard deviation [dBm]")
 plt.title("Power standard dev. in each polarization")
+plt.legend(pol_names)
 plt.tight_layout()
 
 # %% Difference in power between LP11a and LP11b
@@ -106,13 +117,15 @@ plt.tight_layout()
 plt.figure()
 
 for x in range(Ps_pol.shape[-1]):
-    n,bins, patchs = plt.hist(dBm(Ps_pol[:, -1, x]), 50, density=True, alpha=0.5)
+    n,bins, patchs = plt.hist(dBm(Ps_pol[:, -1, x]), 30, density=True, alpha=0.5, label=mode_names[x])
 plt.xlabel("Power [dBm]")
 plt.ylabel("Probability")
 plt.title("Power in each spatial mode, at fiber end")
+plt.legend()
 plt.tight_layout()
 # %%
 
 # %%
 
 plt.show()
+

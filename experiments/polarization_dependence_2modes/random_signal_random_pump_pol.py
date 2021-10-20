@@ -67,9 +67,7 @@ if __name__ == "__main__":
 
 
     while condition(batch_idx, args):
-        s_sop = polarization.random_hypersop(3)
-        p_sop = polarization.random_hypersop(3)
-        params = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
+        params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs_per_batch)]
 
         # propagate 
         results = pool.starmap(exp.run, params)

@@ -28,6 +28,7 @@ def process_results(results, inputs, filename):
             batch_idx = 1
 
 
+
         signal_sop_dset = f.create_dataset(f"batch-{batch_idx}/signal_sops", dtype=np.complex128, shape=signal_sops.shape, compression="gzip")
         signal_sop_dset[:] = signal_sops
         pump_sop_dset = f.create_dataset(f"batch-{batch_idx}/pump_sops", dtype=np.complex128, shape=pump_sops.shape, compression="gzip")
