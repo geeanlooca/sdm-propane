@@ -36,8 +36,8 @@ if __name__ == "__main__":
     Lk_min = args.min_beat_length
     Lk_max = args.max_beat_length
 
-    id = sys.getenv("SLURM_ARRAY_TASK_ID")
-    num_beat_lengths = sys.getenv("SLURM_ARRAY_TASK_COUNT")
+    id = os.getenv("SLURM_ARRAY_TASK_ID")
+    num_beat_lengths = os.getenv("SLURM_ARRAY_TASK_COUNT")
 
     Lk = np.geomspace(Lk_min, Lk_max, num_beat_lengths)
 
