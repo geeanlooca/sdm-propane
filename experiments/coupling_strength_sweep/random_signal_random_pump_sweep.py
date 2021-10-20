@@ -57,6 +57,7 @@ if __name__ == "__main__":
     batch_idx = 0
 
     signal_manager = OnlineMeanManager("Signal power")
+    signal_manager_dBm = OnlineMeanManager("Signal power dBm")
     output_signal_manager = OnlineMeanManager("Output signal power")
 
 
@@ -94,7 +95,8 @@ if __name__ == "__main__":
 
 
         output_signal_manager.update(dBm(Ps_pol[:,-1,:]), accumulate=True)
-        signal_manager.update(dBm(Ps_pol), accumulate=False)
+        signal_manager.update(Ps_pol, accumulate=False)
+        signal_manager_dBm.update(Ps_pol, accumulate=False)
 
         plt.figure(1)
         output_signal_manager.plot(f"{exp_name}-output_power_convergence-{params_string}.png")
@@ -104,14 +106,14 @@ if __name__ == "__main__":
         plt.clf()
         plt.subplot(121)
 
-        plt.plot(z * 1e-3, signal_manager.mean)
+        plt.plot(z * 1e-3, dBm(signal_manager.mean))
         plt.xlabel("Position [km]")
         plt.ylabel("Power [dBm]")
         plt.tight_layout()
 
 
         plt.subplot(122)
-        plt.plot(z * 1e-3, signal_manager.std)
+        plt.plot(z * 1e-3, signal_manager_dBm.std)
         plt.xlabel("Position [km]")
         plt.ylabel("Power [dBm]")
 
