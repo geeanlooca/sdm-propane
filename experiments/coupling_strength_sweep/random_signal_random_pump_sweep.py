@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
         output_signal_manager.update(dBm(Ps_pol[:,-1,:]), accumulate=True)
         signal_manager.update(Ps_pol, accumulate=False)
-        signal_manager_dBm.update(Ps_pol, accumulate=False)
+        signal_manager_dBm.update(dBm(Ps_pol), accumulate=False)
 
         plt.figure(1)
         output_signal_manager.plot(f"{exp_name}-output_power_convergence-{params_string}.png")
