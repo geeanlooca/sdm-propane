@@ -4,7 +4,7 @@
 #SBATCH --mem 16G
 #SBATCH --array=0-5%3
 
-Lk=1
+Lk=0.1
 DZS=(5 1 0.2 0.05 0.1)
 DZ=${DZS[$SLURM_ARRAY_TASK_ID]}
 
