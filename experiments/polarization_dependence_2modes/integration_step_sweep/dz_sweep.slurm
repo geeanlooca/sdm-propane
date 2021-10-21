@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH -c 16
+#SBATCH -c 32
 #SBATCH -p allgroups
 #SBATCH --mem 16G
-#SBATCH --array=0-5
+#SBATCH --array=0-5%3
 
 Lk=1
 DZS=(5 1 0.2 0.05 0.1)
