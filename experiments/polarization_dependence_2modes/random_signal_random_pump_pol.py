@@ -57,14 +57,22 @@ if __name__ == "__main__":
 
     write_metadata(filename, exp)
 
-    def condition(i, args):
-        if args.forever:
-            print(f"Batch {i}...")
-            return True
-        else:
-            print(f"Batch {i}/{args.batches}...")
-            return i < args.batches
 
+    def condition(i, args):
+
+        simulated_fibers = args.runs_per_batch * i
+        if args.forever:
+            string = f"Batch {i}...\t{simulated_fibers} fibers..."
+            return True
+        elif args.max_fibers:
+            batches = np.ceil(args.max_fibers / args.runs_per_batch)
+            string = f"Batch {i}/{batches}...\t{simulated_fibers} fibers..."
+            print(string)
+            return i < batches
+        else:
+            string = f"Batch {i}/{args.batches}...\t{simulated_fibers} fibers..."
+            print(string)
+            return i < args.batches
 
     while condition(batch_idx, args):
         params = [(polarization.random_hypersop(3), polarization.random_hypersop(3)) for _ in range(args.runs_per_batch)]

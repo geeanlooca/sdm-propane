@@ -73,18 +73,6 @@ plt.title("Power standard dev. in each spatial mode")
 plt.legend(mode_names)
 plt.tight_layout()
 
-plt.figure()
-plt.plot(z * 1e-3, dBm(Ps_pol.std(axis=0)))
-plt.xlabel("Position [km]")
-plt.ylabel("Standard deviation [dBm]")
-plt.title("Power standard dev. in each spatial mode")
-plt.legend(mode_names)
-plt.tight_layout()
-
-plt.figure()
-plt.plot(z * 1e3, above)
-plt.plot(z * 1e3, below)
-plt.tight_layout()
 
 #%%
 
@@ -113,17 +101,17 @@ plt.tight_layout()
 
 # %% Difference in power between LP11a and LP11b
 
-power_difference = np.abs((Ps_pol[:, :, 1] - Ps_pol[:,:,2]))
-above = dB(power_difference.mean(axis=0) + power_difference.std(axis=0))
-below = dB(power_difference.mean(axis=0) - power_difference.std(axis=0))
+# power_difference = np.abs((Ps_pol[:, :, 1] - Ps_pol[:,:,2]))
+# above = dB(power_difference.mean(axis=0) + power_difference.std(axis=0))
+# below = dB(power_difference.mean(axis=0) - power_difference.std(axis=0))
 
-plt.figure()
-plt.plot(z * 1e-3, dB(power_difference.mean(axis=0)))
-plt.fill_between(z * 1e-3, below, above, color=f"C0", alpha=0.3)
-plt.xlabel("Position [km]")
-plt.ylabel("Power difference [dB]")
-plt.title("Difference in power between LP11a and LP11b")
-plt.tight_layout()
+# plt.figure()
+# plt.plot(z * 1e-3, dB(power_difference.mean(axis=0)))
+# plt.fill_between(z * 1e-3, below, above, color=f"C0", alpha=0.3)
+# plt.xlabel("Position [km]")
+# plt.ylabel("Power difference [dB]")
+# plt.title("Difference in power between LP11a and LP11b")
+# plt.tight_layout()
 
 # %% Histogram on the total power of each spatial mode at the end of the fiber
 
