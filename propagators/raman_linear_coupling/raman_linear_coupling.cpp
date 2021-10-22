@@ -326,44 +326,6 @@ py::array_t<double> perturbation_rotation_matrix(double theta, py::array_t<int> 
     return R;
 }
 
-void compute_perturbation_angles(double correlation_length, double dz, int step_count, double* buffer, std::optional<unsigned MKL_INT64> seed = NULL)
-{
-    double sigma = 1 / sqrt((2 * correlation_length));
-
-    unsigned MKL_INT64 seed_;
-
-    if (!seed.has_value())
-        mkl_get_cpu_clocks(&seed_);
-    else
-        seed_ = seed.value();
-
-    VSLStreamStatePtr stream;
-    vslNewStream(&stream, VSL_BRNG_MT19937, seed_);
-    vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, step_count, buffer, 0, 1);
-
-    double theta0[1];
-    vdRngUniform(VSL_RNG_METHOD_UNIFORM_STD, stream, 1,theta0, 0, 2 * M_PI);
-
-    // TODO: buffer[0] = i.i.d -> U(0, 2pi)
-    buffer[0] = theta0[0];
-
-    for (size_t iteration = 1; iteration < step_count; iteration++)
-    {
-        double dtheta = sqrt(dz) * sigma * buffer[iteration];
-        double new_theta = buffer[iteration - 1] + dtheta;
-        buffer[iteration] = new_theta;
-    }
-}
-
-py::array_t<double> thetas(double correlation_length, double dz, int step_count)
-{
-    py::array_t<double> theta = py::array_t<double>(step_count);
-    double *buff = (double *) theta.request().ptr;
-    compute_perturbation_angles(correlation_length, dz, step_count, buff);
-
-    return theta;
-}
-
 void compute_nonlinear_propagation(
     MKL_Complex16* y0,
     MKL_Complex16* y,
@@ -709,14 +671,13 @@ py::tuple integrate(
     double stepsize,
     py::array_t<int> indices_s,
     py::array_t<int> indices_p,
-    double correlation_length,
     double alpha_s,
     double alpha_p,
     py::array_t<double> beta_s,
     py::array_t<double> beta_p,
+    py::array_t<double> thetas_array,
     std::optional<py::array_t<double>> K_s,
     std::optional<py::array_t<double>> K_p,
-    std::optional<int> seed,
     std::optional<py::dict> nonlinear_params,
     std::optional<bool> undepleted_pump,
     std::optional<bool> signal_spm,
@@ -787,11 +748,7 @@ py::tuple integrate(
         z_buf[i] = i * dz;
     }
 
-    // generate a vector of iid normal random variables
-    // it contains the value of the angle of the perturbation at each step
-    py::array_t<double> thetas_array = py::array_t<double>(step_count);
     double *thetas = (double *)thetas_array.request().ptr;
-    compute_perturbation_angles(correlation_length, dz, step_count, thetas, seed);
 
     py::buffer_info indices_buf_info_s = indices_s.request();
     int *indices_buf_s = (int *)indices_buf_info_s.ptr;
@@ -972,7 +929,7 @@ py::tuple integrate(
     Ap.resize({step_count, num_modes_p});
     As.resize({step_count, num_modes_s});
 
-    return py::make_tuple(z, thetas_array, Ap, As);
+    return py::make_tuple(z, Ap, As);
 }
 
 int optional(int a, std::optional<int> b)
@@ -1014,14 +971,13 @@ PYBIND11_MODULE(raman_linear_coupling, m)
         py::arg("stepsize"),
         py::arg("indices_s"),
         py::arg("indices_p"),
-        py::arg("correlation_length"),
         py::arg("alpha_s"),
         py::arg("alpha_p"),
         py::arg("beta_s"),
         py::arg("beta_p"),
+        py::arg("theta"),
         py::arg("K_s") = py::none(),
         py::arg("K_p") = py::none(),
-        py::arg("seed") = py::none(),
         py::arg("nonlinear_params") = py::none(),
         py::arg("undepleted_pump") = py::none(),
         py::arg("signal_spm") = py::none(),
@@ -1032,7 +988,6 @@ PYBIND11_MODULE(raman_linear_coupling, m)
 
     // m.def("nonlinear_propagation", &nonlinear_propagation, "Propagator for Raman equations with linear coupling.");
     m.def("perturbation_rotation_matrix", &perturbation_rotation_matrix);
-    m.def("theta", &thetas);
     m.def("optional", &optional, py::arg("a"), py::arg("b") = py::none());
     m.def("indexing", &indexing);
 }

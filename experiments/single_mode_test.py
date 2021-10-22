@@ -51,11 +51,8 @@ Lbeta = fiber.modal_beat_length(wavelength=signal_wavelength)
 Lpert = 1e5 * Lbeta
 delta_n = fiber.birefringence(2 * np.pi / Lpert, wavelength=signal_wavelength)
 
-# fiber.core_ellipticity()
 K_signal = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=signal_wavelength)
 K_pump = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=pump_wavelength)
-# K_signal = fiber.core_ellipticity_coupling_matrix(delta_n=delta_n, wavelength=signal_wavelength)
-# K_pump = fiber.core_ellipticity_coupling_matrix(delta_n=delta_n, wavelength=pump_wavelength)
 
 nonlinear_params = fiber.get_raman_coefficients(n2, gR, signal_wavelength, pump_wavelength, as_dict=True) 
 
@@ -88,8 +85,6 @@ beta_p = fiber.propagation_constants(wavelength=pump_wavelength, remove_mean=Tru
 
 if not args.sigma:
     nonlinear_params['sigma'] = 0
-# nonlinear_params['a0'] = 0
-# nonlinear_params['b0'] = 0
 nonlinear_params['aW'] = np.conj(nonlinear_params['aW'])
 nonlinear_params['bW'] = np.conj(nonlinear_params['bW'])
 
@@ -106,42 +101,28 @@ nonlinear_params["Q2_s"] *= 0
 nonlinear_params["Q1_p"] *= 0
 nonlinear_params["Q2_p"] *= 0
 
-# Q3 = nonlinear_params["Q3_s"]
-# Q30 = Q3[0,0,0,0]
-# Q3 = np.zeros_like(Q3)
-# Q3[0,0,0,0] = Q30
-# nonlinear_params["Q3_s"] = Q3
-# nonlinear_params["Q4_s"] = Q3
-# nonlinear_params["Q5_s"] = Q3
 
-# Q3p = nonlinear_params["Q3_p"]
-# Q30 = Q3p[0,0,0,0]
-# Q3p = np.zeros_like(Q3p)
-# Q3p[0,0,0,0] = Q30
-# nonlinear_params["Q3_p"] = Q3p
-# nonlinear_params["Q4_p"] = Q3p
-# nonlinear_params["Q5_p"] = Q3p
+from perturbation_angles import generate_perturbation_angles
+thetas = generate_perturbation_angles(correlation_length, dz, fiber_length)
 
 
 propagation_function = raman_linear_coupling.propagate
-# import python_propagator
-# propagation_function = python_propagator.propagate
+
 start = time.perf_counter()
-z, theta, Ap, As =propagation_function(
+z, Ap, As =propagation_function(
     As0,
     Ap0,
     fiber_length,
     dz,
     indices_s,
     indices_p,
-    correlation_length,
     alpha_s,
     alpha_p,
     beta_s,
     beta_p,
+    thetas,
     K_s=Kb_s,
     K_p=Kb_p,
-    seed=0,
     nonlinear_params=nonlinear_params,
     undepleted_pump=args.undepleted_pump,
     signal_coupling=args.signal_coupling,
@@ -152,13 +133,6 @@ z, theta, Ap, As =propagation_function(
 end = time.perf_counter()
 print("Time: ", (end - start))
 
-
-target_points = 1000
-# print("Decimation factor:", decimation_factor, "Sample count:", len(z))
-
-# z = z[::10]
-# As = As[::10]
-# Ap = Ap[::10]
 
 
 signal_power_s = np.abs(As) ** 2
@@ -199,16 +173,6 @@ plt.legend(loc="best")
 plt.xlabel("Position [km]")
 plt.ylabel("Power [mW]")
 
-plt.savefig("prova2.pdf")
-# plt.subplot(122)
-# plt.plot(z*1e-3, 30 + 10 * np.log10((signal_power_s)))
-# plt.plot(z*1e-3, 30 + 10 * np.log10(P_th), marker='.', markevery=markevery, linestyle='none')
-# # plt.plot(z*1e-3, 30 + 10 * np.log10(attenuation_signal), linestyle='dotted', color='black')
-# plt.legend(fiber.mode_names(signal_wavelength), loc="best")
-# plt.xlabel("Position [km]")
-# plt.ylabel("Power [dBm]")
-# # plt.grid()
-
 plt.tight_layout()
 
 plt.figure(figsize=(10, 5))
@@ -218,7 +182,6 @@ plt.plot(z*1e-3, Pp_th * 1e3, marker='.', markevery=markevery, linestyle='none')
 plt.legend(fiber.mode_names(pump_wavelength), loc="best")
 plt.xlabel("Position [km]")
 plt.ylabel("Power [mW]")
-# plt.grid()
 
 plt.subplot(122)
 plt.plot(z*1e-3, 30 + 10 * np.log10((signal_power_p)))
@@ -267,5 +230,5 @@ plt.title("Total energy variation")
 plt.tight_layout()
 
 
-plt.savefig("prova.pdf")
+plt.show()
 # %%

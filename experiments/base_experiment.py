@@ -173,12 +173,8 @@ class VaryPolarizationExperiment(Experiment):
 
         # inject power only in the two LP11 groups of the pump
         pump_power_per_spatial_mode = self.Pp0 / 2
-        # input_pump = np.reshape(input_pump_jones, (num_spatial_modes_pump, 2))
         input_pump = np.sqrt(pump_power_per_spatial_mode) * np.reshape(input_pump_jones, (num_spatial_modes_pump, 2))
         input_pump[0] = 0
-        # input_pump[0] *= np.sqrt(self.Pp0/2)
-        # input_pump[1] *= np.sqrt(self.Pp0/4)
-        # input_pump[2] *= np.sqrt(self.Pp0/4)
         input_pump = input_pump.flatten()
 
         input_signal = input_signal_jones * np.sqrt(signal_power_per_spatial_mode)

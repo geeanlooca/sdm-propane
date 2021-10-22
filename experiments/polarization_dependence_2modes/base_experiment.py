@@ -113,7 +113,7 @@ class VaryPolarizationExperiment(Experiment):
         self.nonlinear_params['aW'] = np.conj(self.nonlinear_params['aW'])
         self.nonlinear_params['bW'] = np.conj(self.nonlinear_params['bW'])
 
-    def propagate(self, As0, Ap0):
+    def propagate(self, As0, Ap0, thetas):
         z, theta, Ap, As = raman_linear_coupling.propagate(
             As0,
             Ap0,
@@ -121,14 +121,13 @@ class VaryPolarizationExperiment(Experiment):
             self.dz,
             self.indices_s,
             self.indices_p,
-            self.correlation_length,
             self.alpha_s,
             self.alpha_p,
             self.beta_s,
             self.beta_p,
+            thetas,
             K_s=self.Ktot_signal,
             K_p=self.Ktot_pump,
-            seed=self.args.fiber_seed,
             nonlinear_params=self.nonlinear_params,
             undepleted_pump=False,
             signal_coupling=True,
@@ -151,7 +150,7 @@ class VaryPolarizationExperiment(Experiment):
         metadata = {**metadata, **vars(self.args)}
         return metadata
 
-    def run(self, signal_sop, pump_sop):
+    def run(self, signal_sop, pump_sop, thetas):
         """
         Parameters
         ----------
@@ -176,14 +175,11 @@ class VaryPolarizationExperiment(Experiment):
         # input_pump = np.reshape(input_pump_jones, (num_spatial_modes_pump, 2))
         input_pump = np.sqrt(pump_power_per_spatial_mode) * np.reshape(input_pump_jones, (num_spatial_modes_pump, 2))
         input_pump[0] = 0
-        # input_pump[0] *= np.sqrt(self.Pp0/2)
-        # input_pump[1] *= np.sqrt(self.Pp0/4)
-        # input_pump[2] *= np.sqrt(self.Pp0/4)
         input_pump = input_pump.flatten()
 
         input_signal = input_signal_jones * np.sqrt(signal_power_per_spatial_mode)
 
-        z, As, Ap, theta = self.propagate(input_signal, input_pump)
+        z, As, Ap, theta = self.propagate(input_signal, input_pump, thetas)
 
         # downsample data 
         target_points = int(self.fiber_length // self.args.sampling)

@@ -11,19 +11,16 @@ experiments_path = sys.path.append(root_path)
 from stats_manager import OnlineMeanManager
 
 # %%
-import argparse
-import datetime
 import multiprocessing
 
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-import tqdm
 
 import polarization
 
 from base_experiment import VaryPolarizationExperiment
 from utils import process_results, write_metadata, cmd_parser, build_params_string
+from perturbation_angles import generate_perturbation_angles
 
 def dBm(x):
     return 10 * np.log10(x * 1e3)
@@ -55,7 +52,7 @@ if __name__ == "__main__":
     s_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
     p_sop = polarization.linear_hyperstokes(3, angle=pol_angle)
 
-    params = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
+    sops = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
 
     write_metadata(filename, exp)
 
@@ -70,6 +67,8 @@ if __name__ == "__main__":
 
 
     while condition(batch_idx, args):
+        fibers = [generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3) for _ in range(args.runs_per_batch)]
+        params = [(s_sop, p_sop, fiber) for (s_sop, p_sop), fiber in zip(sops, fibers)]
 
         # propagate 
         results = pool.starmap(exp.run, params)

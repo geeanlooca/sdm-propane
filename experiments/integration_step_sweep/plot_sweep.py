@@ -17,19 +17,24 @@ def get_data(args):
     data_files = find_files(args)
     As = []
     Lk = []
+    dz = []
     
 
     for f in data_files:
-        data = read_data(f)
-        As.append(data['signal'])
-        z = data['z']
-        Lk.append( data['Lk'] )
+        try:
+            data = read_data(f)
+            As.append(data['signal'])
+            z = data['z']
+            Lk.append( data['Lk'] )
+            dz.append(data['dz'])
+        except:
+            print(f"Error while reading {f}")
 
-    xy = sorted(zip(Lk, As))
-    Lk = [x for x, y in xy]
+    xy = sorted(zip(dz, As))
+    dz = [x for x, y in xy]
     As = [y for x, y in xy]
 
-    return As, z, np.array(Lk)
+    return As, z, np.array(dz), Lk
 
 def dBm(x):
     return 10 * np.log10(x * 1e3)
@@ -41,18 +46,16 @@ def dB(x):
 parser = argparse.ArgumentParser()
 parser.add_argument("directory")
 args = parser.parse_args()
-As, z, Lk = get_data(args)
+As, z, dz, Lk = get_data(args)
 
 num_files = len(As)
-
-
 
 std = []
 average_power = []
 
 for x in range(num_files):
     Ps = np.abs(As[x] ** 2)
-    Ps_pol = (Ps[:, :, ::2] + Ps[:,:, 1::2])
+    Ps_pol = (Ps[:, -1, ::2] + Ps[:,-1, 1::2])
     average_power.append(dBm(Ps_pol.mean(axis=0)))
     std.append(dBm(Ps_pol).std(axis=0))
 
@@ -61,34 +64,30 @@ average_power = np.stack(average_power)
 std = np.stack(std)
 
 
-lengths = np.array([10, 25, 50])
-dz = z[1] - z[0]
-
-idx = lengths * 1e3 / dz
 
 
-nlenghts = len(lengths)
 nmodes = average_power.shape[-1]
 mode_labels = ["LP01", "LP11a", "LP11b"]
-length_labels = [f"{length} km" for length in lengths]
 markers = ["o", 's', 'x', '^']
-colors= [ f"C{m}" for m in range(nlenghts) ] 
-length_handles = [ patches.Patch(color=colors[l], label=length_labels[l]) for l in range(nlenghts)]
+colors = [f"C{x}" for x in range(nmodes)]
 mode_handles = [lines.Line2D([], [], color='k', marker=markers[x], label=mode_labels[x]) for x in range(nmodes)]
 
 
 fig, axs = plt.subplots(nrows=2, sharex=True)
 
-for x, id in enumerate(idx):
-    color = colors[x]
-    for m in range(nmodes):
-        marker = markers[m]
-        axs[0].semilogx(Lk, average_power[:, int(id), m].squeeze(), color=color, marker=marker, fillstyle='none')
-        axs[0].set_ylabel(r"$\langle P \rangle$ [dBm]")
+fiber_length = z[-1] * 1e-3
 
-        axs[1].semilogx(Lk, std[:, int(id), m].squeeze(), color=color, marker=marker, fillstyle='none')
-        axs[1].set_ylabel(r"$\sigma$ [dBm]")
-        axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
-axs[0].legend(handles=mode_handles + length_handles, ncol=3, loc="upper left")
+for m in range(nmodes):
+    color = colors[m]
+    marker = markers[m]
+    axs[0].semilogx(dz, average_power[:, m].squeeze(), color=color, marker=marker, fillstyle='none')
+
+    axs[1].semilogx(dz, std[:, m].squeeze(), color=color, marker=marker, fillstyle='none')
+
+axs[0].set_ylabel(r"$\langle P \rangle$ [dBm]")
+axs[1].set_ylabel(r"$\sigma$ [dBm]")
+axs[1].set_xlabel(r"$dz$ [m]")
+axs[1].legend(mode_labels)
+plt.suptitle(rf"$L_{{\kappa}} = {Lk[0]}$ m, $L = {fiber_length}$ km")
 plt.tight_layout()
 plt.show()
