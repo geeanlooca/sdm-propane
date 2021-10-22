@@ -113,7 +113,7 @@ class VaryPolarizationExperiment(Experiment):
         self.nonlinear_params['aW'] = np.conj(self.nonlinear_params['aW'])
         self.nonlinear_params['bW'] = np.conj(self.nonlinear_params['bW'])
 
-    def propagate(self, As0, Ap0):
+    def propagate(self, As0, Ap0, theta):
         z, Ap, As = raman_linear_coupling.propagate(
             As0,
             Ap0,
@@ -121,14 +121,13 @@ class VaryPolarizationExperiment(Experiment):
             self.dz,
             self.indices_s,
             self.indices_p,
-            self.correlation_length,
             self.alpha_s,
             self.alpha_p,
             self.beta_s,
             self.beta_p,
+            theta,
             K_s=self.Ktot_signal,
             K_p=self.Ktot_pump,
-            seed=self.args.fiber_seed,
             nonlinear_params=self.nonlinear_params,
             undepleted_pump=False,
             signal_coupling=True,
@@ -137,7 +136,7 @@ class VaryPolarizationExperiment(Experiment):
             pump_spm=True,
         )
 
-        return z, As, Ap, theta
+        return z, As, Ap
 
     def metadata(self):
 
@@ -151,7 +150,7 @@ class VaryPolarizationExperiment(Experiment):
         metadata = {**metadata, **vars(self.args)}
         return metadata
 
-    def run(self, signal_sop, pump_sop):
+    def run(self, signal_sop, pump_sop, theta):
         """
         Parameters
         ----------
@@ -179,7 +178,7 @@ class VaryPolarizationExperiment(Experiment):
 
         input_signal = input_signal_jones * np.sqrt(signal_power_per_spatial_mode)
 
-        z, As, Ap, theta = self.propagate(input_signal, input_pump)
+        z, As, Ap = self.propagate(input_signal, input_pump, theta)
 
         # downsample data 
         target_points = int(self.fiber_length // self.args.sampling)
@@ -190,4 +189,4 @@ class VaryPolarizationExperiment(Experiment):
         Ap = Ap[::df]
 
 
-        return z, As, Ap, theta
+        return z, As, Ap

@@ -136,7 +136,7 @@ class VaryPolarizationExperiment(Experiment):
             pump_spm=True,
         )
 
-        return z, As, Ap, theta
+        return z, As, Ap
 
     def metadata(self):
 
@@ -179,7 +179,7 @@ class VaryPolarizationExperiment(Experiment):
 
         input_signal = input_signal_jones * np.sqrt(signal_power_per_spatial_mode)
 
-        z, As, Ap, theta = self.propagate(input_signal, input_pump, thetas)
+        z, As, Ap = self.propagate(input_signal, input_pump, thetas)
 
         # downsample data 
         target_points = int(self.fiber_length // self.args.sampling)
@@ -190,4 +190,4 @@ class VaryPolarizationExperiment(Experiment):
         Ap = Ap[::df]
 
 
-        return z, As, Ap, theta
+        return z, As, Ap
