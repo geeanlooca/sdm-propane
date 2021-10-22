@@ -114,7 +114,7 @@ class VaryPolarizationExperiment(Experiment):
         self.nonlinear_params['bW'] = np.conj(self.nonlinear_params['bW'])
 
     def propagate(self, As0, Ap0):
-        z, theta, Ap, As = raman_linear_coupling.propagate(
+        z, Ap, As = raman_linear_coupling.propagate(
             As0,
             Ap0,
             self.fiber_length,
