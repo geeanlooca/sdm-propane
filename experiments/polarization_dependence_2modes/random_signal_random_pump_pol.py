@@ -84,7 +84,7 @@ if __name__ == "__main__":
         results = pool.starmap(exp.run, params)
 
         # process results and save data to file
-        z, As, Ap, theta = process_results(results, params, filename)
+        z, As, Ap = process_results(results, params, filename)
 
         Ps = np.abs(As) ** 2
         Ps_pol = (Ps[:, :, ::2] + Ps[:,:, 1::2])
