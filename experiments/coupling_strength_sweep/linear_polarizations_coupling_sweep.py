@@ -28,6 +28,7 @@ def dBm(x):
 if __name__ == "__main__":
 
     parser = cmd_parser()
+    parser.add_argument("--polarization", choices=["parallel", "orthogonal"])
     args = parser.parse_args()
 
     Lk_min = args.min_beat_length
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     selected_params = ["fiber_length", "correlation_length", "perturbation_beat_length", "dz"]
     params_string = build_params_string(args, selected_params)
 
-    exp_name  = "random_polarizations_Lk_sweep"
+    exp_name = "parallel_linear_pol_coupling_sweep"
     filename = f"{exp_name}-{params_string}.h5"
 
 
@@ -54,9 +55,19 @@ if __name__ == "__main__":
     batch_idx = 0
 
     signal_manager = OnlineMeanManager("Signal power")
-    signal_manager_dBm = OnlineMeanManager("Signal power dBm")
+    pump_manager = OnlineMeanManager("Pump power")
     output_signal_manager = OnlineMeanManager("Output signal power")
 
+    # generate parallel input polarizations between signal and pump
+    pol_angle = 0
+    s_sop = polarization.linear_hyperstokes(3, angle=0)
+
+    if args.polarization == "parallel":
+        p_sop = np.copy(s_sop)
+    else:
+        p_sop = -s_sop
+
+    sops = [(s_sop, p_sop) for _ in range(args.runs_per_batch)]
 
     write_metadata(filename, exp)
 
@@ -75,8 +86,10 @@ if __name__ == "__main__":
             print(string)
             return i < args.batches
 
+
     while condition(batch_idx, args):
-        params = [(polarization.random_hypersop(3), polarization.random_hypersop(3), generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3)) for _ in range(args.runs_per_batch)]
+        fibers = [generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3) for _ in range(args.runs_per_batch)]
+        params = [(s_sop, p_sop, fiber) for (s_sop, p_sop), fiber in zip(sops, fibers)]
 
         # propagate 
         results = pool.starmap(exp.run, params)
@@ -93,30 +106,41 @@ if __name__ == "__main__":
 
         output_signal_manager.update(dBm(Ps_pol[:,-1,:]), accumulate=True)
         signal_manager.update(Ps_pol, accumulate=False)
-        signal_manager_dBm.update(dBm(Ps_pol), accumulate=False)
+        pump_manager.update(Pp_pol, accumulate=False)
 
         plt.figure(1)
         output_signal_manager.plot(f"{exp_name}-output_power_convergence-{params_string}.png")
         plt.pause(0.05)
 
+
         plt.figure(2)
-        plt.clf()
-        plt.subplot(121)
+        plt.cla()
 
+        above = dBm(signal_manager.mean + signal_manager.std)
+        below = dBm(signal_manager.mean - signal_manager.std)
         plt.plot(z * 1e-3, dBm(signal_manager.mean))
+        for x in range(signal_manager.mean.shape[-1]):
+            plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3)
         plt.xlabel("Position [km]")
         plt.ylabel("Power [dBm]")
+        plt.title("Average signal power and standard dev. in each spatial mode")
         plt.tight_layout()
-
-
-        plt.subplot(122)
-        plt.plot(z * 1e-3, signal_manager_dBm.std)
-        plt.xlabel("Position [km]")
-        plt.ylabel("Power [dBm]")
-
-        plt.suptitle("Average signal power and standard dev. in each spatial mode")
-
         plt.savefig(f"{exp_name}-mean_signal_power-{params_string}.png")
+        plt.pause(0.05)
+
+        plt.figure(3)
+        plt.cla()
+
+        above = dBm(pump_manager.mean + pump_manager.std)
+        below = dBm(pump_manager.mean - pump_manager.std)
+        plt.plot(z * 1e-3, dBm(pump_manager.mean))
+        for x in range(pump_manager.mean.shape[-1]):
+            plt.fill_between(z * 1e-3, below[:, x], above[:, x], color=f"C{x}", alpha=0.3)
+        plt.xlabel("Position [km]")
+        plt.ylabel("Power [dBm]")
+        plt.title("Average pump power and standard dev. in each spatial mode")
         plt.tight_layout()
+        plt.savefig(f"{exp_name}-mean_pump_power-{params_string}.png")
+        plt.pause(0.05)
 
         batch_idx += 1

@@ -1,3 +1,6 @@
+import sys
+
+sys.path.append("/home/gianluca/sdm-propane")
 
 import argparse
 import os
@@ -6,7 +9,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.lines as lines
 from read_data import read_data
+import tqdm
 
+import polarization
 
 def find_files(args):
     filenames = os.listdir(args.directory)
@@ -16,20 +21,25 @@ def find_files(args):
 def get_data(args):
     data_files = find_files(args)
     As = []
+    Ap = []
     Lk = []
     
 
-    for f in data_files:
-        data = read_data(f)
-        As.append(data['signal'])
-        z = data['z']
-        Lk.append( data['Lk'] )
+    for f in tqdm.tqdm(data_files):
+        try:
+            data = read_data(f)
+            As.append(data['signal'])
+            Ap.append(data['pump'])
+            z = data['z']
+            Lk.append( data['Lk'] )
+        except:
+            print(f"Error reading {f}")
 
     xy = sorted(zip(Lk, As))
     Lk = [x for x, y in xy]
     As = [y for x, y in xy]
 
-    return As, z, np.array(Lk)
+    return As, Ap, z, np.array(Lk)
 
 def dBm(x):
     return 10 * np.log10(x * 1e3)
@@ -38,13 +48,20 @@ def dB(x):
     return 10 * np.log10(x)
 
 
+default_filename="/home/gianluca/sdm-propane/experiments/coupling_strength_sweep/random_polarizations/results/dz_1m_L_50km/"
 parser = argparse.ArgumentParser()
-parser.add_argument("directory")
+parser.add_argument("directory", nargs='?', default=default_filename)
 args = parser.parse_args()
-As, z, Lk = get_data(args)
+As, Ap, z, Lk = get_data(args)
 
 num_files = len(As)
 
+
+def compute_angle(a, b, axis=0):
+    norm_a = np.linalg.norm(a, axis=axis)
+    norm_b = np.linalg.norm(b, axis=axis)
+    ab = np.sum(a * b, axis=axis)
+    return ab / (norm_a * norm_b)
 
 
 std = []
@@ -60,8 +77,26 @@ for x in range(num_files):
 average_power = np.stack(average_power)
 std = np.stack(std)
 
+As = np.stack(As)
+Ap = np.stack(Ap)
 
-lengths = np.array([10, 25, 50])
+S_s = polarization.hyperjones_to_hyperstokes(As, axis=-1)
+S_p = polarization.hyperjones_to_hyperstokes(Ap, axis=-1)
+
+angle = compute_angle(S_s, S_p, axis=-1)
+angle_avg = angle.mean(axis=1)
+
+plt.figure()
+plt.plot(z * 1e-3, angle_avg[0], label=rf"$L_{{\kappa}} = {Lk[0]}$ m")
+plt.plot(z * 1e-3, angle_avg[-1], label=rf"$L_{{\kappa}} = {Lk[-1]}$ m")
+plt.xlabel(r"$z$ [km]")
+plt.ylabel(r"$\langle \cos\theta \rangle$") 
+plt.ylim((-1, 1))
+plt.legend()
+plt.tight_layout()
+
+
+lengths = np.array([10])
 dz = z[1] - z[0]
 
 idx = lengths * 1e3 / dz

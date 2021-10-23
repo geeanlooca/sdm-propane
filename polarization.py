@@ -1,6 +1,41 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def hyperjones_to_hyperstokes(E, axis=0):
+    nmodes = E.shape[axis] // 2
+    new_shape = list(E.shape)
+    new_shape[axis] = 3 * nmodes
+    new_shape = tuple(new_shape)
+
+    sop = np.zeros(new_shape, dtype=np.float64)
+
+    for m in range(nmodes):
+        idx_x = m * 2
+        idx_y = m * 2 + 1
+
+        idx_s1 = m * 3
+        idx_s2 = idx_s1 + 1
+        idx_s3 = idx_s1 + 2
+
+        sl_1 =[slice(None)] * sop.ndim
+        sl_2 =[slice(None)] * sop.ndim
+        sl_3 =[slice(None)] * sop.ndim
+        sl_1[axis] = idx_s1
+        sl_2[axis] = idx_s2
+        sl_3[axis] = idx_s3
+
+        J_x = E.take(indices=idx_x, axis=axis)
+        J_y = E.take(indices=idx_y, axis=axis)
+
+        I = np.abs(J_x ** 2) + np.abs(J_y) ** 2
+
+        sop[tuple(sl_1)] = (np.abs(J_x) ** 2 - np.abs(J_y) ** 2) / I
+        sop[tuple(sl_2)] = (2 * np.real(J_x * np.conj(J_y))) / I
+        sop[tuple(sl_3)] = (-2 * np.imag(J_x * np.conj(J_y))) / I
+
+    return sop
+
+
 def stokes_to_jones(sop):
 
     sop_ = np.atleast_2d(sop)
@@ -49,7 +84,7 @@ def compute_stokes(E):
     ndim = E.shape[0]
     S = np.zeros((ndim, 3))
 
-    I = np.abs(E_[:, 0] ** 2) + np.abs(E_[:, 1]) ** 2
+    I = np.abs(E_[:, 0]) ** 2 + np.abs(E_[:, 1]) ** 2
     S[:, 0] = (np.abs(E_[:, 0] ** 2) - np.abs(E_[:, 1]) ** 2) / I
     S[:, 1] = (2 * np.real(E_[:, 0] * np.conj(E_[:, 1]))) / I
     S[:, 2] = (-2 * np.imag(E_[:, 0] * np.conj(E_[:, 1]))) / I
@@ -58,6 +93,7 @@ def compute_stokes(E):
 
 def plot_sphere(pts=30):
     ax = plt.gca()
+    ax = plt.axes(projection='3d')
 
     u = np.linspace(0, 2*np.pi, 100)
     v = np.linspace(0, np.pi, 100)
@@ -141,8 +177,6 @@ def plot_stokes_trajectory(sop, plot_sphere=False, jones=False, plot_kw={}, scat
 
     lines = ax.plot3D(sop[0], sop[1], sop[2], linewidth=1.5, **plot_kw)
     color = lines[-1].get_color()
-    ax.scatter3D(sop[0, 0], sop[1, 0], sop[2, 0], color=color, marker="o", **scatter_kw)
-    ax.scatter3D(sop[0, -1], sop[1, -1], sop[2, -1], color=color, marker="x", **scatter_kw)
     ax.set_xlabel(r"$S_1$")
     ax.set_ylabel(r"$S_2$")
     ax.set_zlabel(r"$S_3$")
