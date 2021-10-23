@@ -14,9 +14,8 @@ def process_results(results, inputs, filename):
         pump_sops[i] = inputs[i][1]
 
     z = results[0][0]
-    As = np.stack([ s for (_, s, _, _) in results])
-    Ap = np.stack([ p for (_, _, p, _) in results])
-    theta = np.stack([ t for (_, _, _, t) in results])
+    As = np.stack([ s for (_, s, _) in results])
+    Ap = np.stack([ p for (_, _, p) in results])
 
     # save to hdf5 file
     with h5py.File(filename, "a") as f:
@@ -48,7 +47,7 @@ def process_results(results, inputs, filename):
         batches = f["total_batches"]
         batches[...] = batch_idx
 
-    return z, As, Ap, theta
+    return z, As, Ap
 
 def write_metadata(filename, experiment):
     # save to hdf5 file

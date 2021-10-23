@@ -150,7 +150,7 @@ class VaryPolarizationExperiment(Experiment):
         metadata = {**metadata, **vars(self.args)}
         return metadata
 
-    def run(self, signal_sop, pump_sop):
+    def run(self, signal_sop, pump_sop, thetas):
         """
         Parameters
         ----------
@@ -178,7 +178,7 @@ class VaryPolarizationExperiment(Experiment):
 
         input_signal = input_signal_jones * np.sqrt(signal_power_per_spatial_mode)
 
-        z, As, Ap, theta = self.propagate(input_signal, input_pump)
+        z, As, Ap = self.propagate(input_signal, input_pump, thetas)
 
         # downsample data 
         target_points = int(self.fiber_length // self.args.sampling)
@@ -189,4 +189,4 @@ class VaryPolarizationExperiment(Experiment):
         Ap = Ap[::df]
 
 
-        return z, As, Ap, theta
+        return z, As, Ap
