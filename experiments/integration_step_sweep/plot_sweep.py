@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.lines as lines
 from read_data import read_data
+import tqdm
 
 
 def find_files(args):
@@ -18,9 +19,12 @@ def get_data(args):
     As = []
     Lk = []
     dz = []
-    
+    z : np.array
 
-    for f in data_files:
+    if len(data_files) == 0:
+        raise ValueError("Empty directory")
+
+    for f in tqdm.tqdm(data_files):
         try:
             data = read_data(f)
             As.append(data['signal'])

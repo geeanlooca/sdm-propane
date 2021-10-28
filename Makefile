@@ -4,7 +4,7 @@ PYBIND = $(shell python3 -m pybind11 --includes)
 INC = -Ipropagators/common -I/usr/include/mkl
 
 raman_linear_coupling:
-	$(CC) $(CCOPT) $(PYBIND) $(INC) propagators/raman_linear_coupling/raman_linear_coupling.cpp propagators/common/matrix_exponential.cpp -o raman_linear_coupling$(shell python3-config --extension-suffix) -lmkl_rt -m64 -fopenmp
+	$(CC) $(CCOPT) $(PYBIND) $(INC) propagators/raman_linear_coupling/raman_linear_coupling.cpp propagators/common/matrix_exponential.cpp -o raman_linear_coupling$(shell python3-config --extension-suffix) -lmkl_rt -m64 
 
 common:
 	$(CC) $(CCOPT) $(PYBIND) $(INC) propagators/common/matrix_exponential_binding.cpp propagators/common/matrix_exponential.cpp -o matrix_exponential$(shell python3-config --extension-suffix) -lmkl_rt -m64
