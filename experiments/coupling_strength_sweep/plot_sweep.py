@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append("/home/gianluca/sdm-propane")
+sys.path.append("../../")
 
 import argparse
 import os
@@ -52,6 +52,7 @@ def dB(x):
 default_filename="/home/gianluca/sdm-propane/experiments/coupling_strength_sweep/random_polarizations/results/dz_1m_L_50km/"
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", nargs='?', default=default_filename)
+parser.add_argument("-s", "--save", action="store_true")
 args = parser.parse_args()
 As, Ap, z, Lk, Ps0 = get_data(args, index=-1)
 
@@ -130,4 +131,10 @@ for m in range(nmodes):
 axs[0].legend(handles=mode_handles)
 plt.tight_layout()
 
-plt.show()
+output_file = os.path.join(args.directory, "plot.png")
+
+
+if args.save:
+    plt.savefig(output_file, dpi=500)
+else:
+    plt.show()
