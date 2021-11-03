@@ -172,8 +172,6 @@ class UniformPumpingExperiment(Experiment):
 
         input_signal = signal_jones_vector * np.sqrt(signal_power_per_spatial_mode)
 
-        print(input_signal, input_pump)
-
         z, As, Ap = self.propagate(input_signal, input_pump, thetas)
 
         # downsample data 

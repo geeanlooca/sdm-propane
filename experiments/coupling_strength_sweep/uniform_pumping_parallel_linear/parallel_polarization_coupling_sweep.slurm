@@ -4,7 +4,7 @@
 #SBATCH --mem 16G
 #SBATCH --array=0-19%4
 #SBATCH -o parallel_linear_pols_%A.%a_out.txt
-#SBATCH -o parallel_linear_pols_%A.%a_err.txt
+#SBATCH -e parallel_linear_pols_%A.%a_err.txt
 
 
 MAX_FIBERS=5000
