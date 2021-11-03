@@ -18,7 +18,8 @@ import numpy as np
 
 import polarization
 
-from uniform_pumping_experiments import ParallelLinearPolarizationsUniformPumpingExperiment, OrthogonalLinearPolarizationsUniformPumpingExperiment
+# from uniform_pumping_experiments import ParallelLinearPolarizationsUniformPumpingExperiment as Parallel, OrthogonalLinearPolarizationsUniformPumpingExperiment as Orthogonal
+from uniform_pumping_elliptical_polarization_experiments import ParallelEllipticalPolarizationsUniformPumpingExperiment as Parallel, OrthogonalEllipticalPolarizationsUniformPumpingExperiment as Orthogonal
 from utils import process_results, write_metadata, cmd_parser, build_params_string
 from perturbation_angles import generate_perturbation_angles
 
@@ -39,9 +40,9 @@ if __name__ == "__main__":
 
 
     if args.polarization == "parallel":
-        exp = ParallelLinearPolarizationsUniformPumpingExperiment(args)
+        exp = Parallel(args)
     else:
-        exp = OrthogonalLinearPolarizationsUniformPumpingExperiment(args)
+        exp = Orthogonal(args)
 
 
     signal_manager = OnlineMeanManager("Signal power")

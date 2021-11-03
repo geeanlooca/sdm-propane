@@ -27,10 +27,10 @@ class ParallelEllipticalPolarizationsUniformPumpingExperiment(UniformPumpingExpe
                 Array of perturbation angles
         """
 
-        signal_jones = np.ones((self.num_modes_s,)) / np.sqrt(3)
+        signal_jones = np.ones((int(3 * self.num_modes_s / 2,))) / np.sqrt(3)
         signal_jones = hyperstokes_to_jones(signal_jones)
 
-        pump_jones = np.ones((self.num_modes_p,)) / np.sqrt(3)
+        pump_jones = np.ones((int(3 * self.num_modes_p / 2,))) / np.sqrt(3)
         pump_jones = hyperstokes_to_jones(pump_jones)
 
         return super().run(signal_jones, pump_jones, thetas)
@@ -45,10 +45,11 @@ class OrthogonalEllipticalPolarizationsUniformPumpingExperiment(UniformPumpingEx
                 Array of perturbation angles
         """
 
-        signal_jones = np.ones((self.num_modes_s,)) / np.sqrt(3)
+
+        signal_jones = np.ones((int(3 * self.num_modes_s / 2),)) / np.sqrt(3)
         signal_jones = hyperstokes_to_jones(signal_jones)
 
-        pump_jones = -np.ones((self.num_modes_p,)) / np.sqrt(3)
+        pump_jones = -np.ones((int(3 * self.num_modes_p / 2),)) / np.sqrt(3)
         pump_jones = hyperstokes_to_jones(pump_jones)
 
         return super().run(signal_jones, pump_jones, thetas)
