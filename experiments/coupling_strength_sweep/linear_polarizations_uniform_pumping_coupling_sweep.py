@@ -82,13 +82,14 @@ if __name__ == "__main__":
 
 
     while condition(batch_idx, args):
-        fibers = [(generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3)) for _ in range(args.runs_per_batch)]
+        fibers = [generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3) for _ in range(args.runs_per_batch)]
+        params = [f for f in fibers]
 
         # propagate 
-        results = pool.starmap(exp.run, fibers)
+        results = pool.map(exp.run, params)
 
         # process results and save data to file
-        z, As, Ap = process_results_fixed_polarizations(results, fibers, filename)
+        z, As, Ap = process_results_fixed_polarizations(results, params, filename)
 
         Ps = np.abs(As) ** 2
         Ps_pol = (Ps[:, :, ::2] + Ps[:,:, 1::2])
