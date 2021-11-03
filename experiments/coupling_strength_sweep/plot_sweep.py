@@ -79,9 +79,6 @@ for x in range(num_files):
 average_gain = np.stack(average_gain)
 std = np.stack(std)
 
-As = np.stack(As)
-Ap = np.stack(Ap)
-
 # S_s = polarization.hyperjones_to_hyperstokes(As, axis=-1)
 # S_p = polarization.hyperjones_to_hyperstokes(Ap, axis=-1)
 
@@ -128,7 +125,7 @@ for m in range(nmodes):
     axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
 
     axs[1].semilogx(Lk, std[:, m].squeeze(), color=color, marker=marker, fillstyle='none')
-    axs[1].set_ylabel(r"$\sigma$ [dBm]")
+    axs[1].set_ylabel(r"$\sigma_G$ [dB]")
     axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
 axs[0].legend(handles=mode_handles)
 plt.tight_layout()

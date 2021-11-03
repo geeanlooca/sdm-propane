@@ -22,6 +22,9 @@ from uniform_pumping_experiments import ParallelLinearPolarizationsUniformPumpin
 from utils import process_results, write_metadata, cmd_parser, build_params_string
 from perturbation_angles import generate_perturbation_angles
 
+def dB(x):
+    return 10 * np.log10(x)
+
 def dBm(x):
     return 10 * np.log10(x * 1e3)
 
@@ -31,14 +34,14 @@ if __name__ == "__main__":
     parser.add_argument("--polarization", choices=["parallel", "orthogonal"])
     args = parser.parse_args()
 
-
-    args.perturbation_beat_length = 1e2
-
     selected_params = ["fiber_length", "correlation_length", "perturbation_beat_length", "dz"]
     params_string = build_params_string(args, selected_params)
 
 
-    exp = OrthogonalLinearPolarizationsUniformPumpingExperiment(args)
+    if args.polarization == "parallel":
+        exp = ParallelLinearPolarizationsUniformPumpingExperiment(args)
+    else:
+        exp = OrthogonalLinearPolarizationsUniformPumpingExperiment(args)
 
 
     signal_manager = OnlineMeanManager("Signal power")
@@ -62,15 +65,15 @@ if __name__ == "__main__":
     plt.figure(1)
     plt.cla()
 
-    plt.plot(z * 1e-3, dBm(Ps))
+    plt.plot(z * 1e-3, dB(Ps_pol / Ps_pol[0]))
     plt.xlabel("Position [km]")
-    plt.ylabel("Power [dBm]")
+    plt.ylabel("Gain [dB]")
     plt.tight_layout()
     
     plt.figure(2)
     plt.cla()
 
-    plt.plot(z * 1e-3, dBm(Pp))
+    plt.plot(z * 1e-3, dBm(Pp_pol))
     plt.xlabel("Position [km]")
     plt.ylabel("Power [dBm]")
     plt.tight_layout()
