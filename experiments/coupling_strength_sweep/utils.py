@@ -2,6 +2,39 @@ import argparse
 import numpy as np
 import h5py
 
+def process_results_fixed_polarizations(results, inputs, filename):
+    runs = len(results)
+
+    z = results[0][0]
+    As = np.stack([ s for (_, s, _) in results])
+    Ap = np.stack([ p for (_, _, p) in results])
+
+    # save to hdf5 file
+    with h5py.File(filename, "a") as f:
+
+        if "total_batches" in f:
+            batch_idx = f["total_batches"][()] + 1
+        else:
+            f["total_batches"] = 0
+            batch_idx = 1
+
+        # only save the positions once
+        if batch_idx == 1:
+            z_dset = f.create_dataset("z", dtype=np.float64, shape=z.shape, compression="gzip")
+            z_dset[:] = z
+
+        signal_dset = f.create_dataset(f"batch-{batch_idx}/signal", dtype=np.complex128, shape=As.shape, compression="gzip")
+        pump_dset = f.create_dataset(f"batch-{batch_idx}/pump", dtype=np.complex128, shape=Ap.shape, compression="gzip")
+
+        signal_dset[:] = As
+        pump_dset[:] = Ap
+
+        batches = f["total_batches"]
+        batches[...] = batch_idx
+
+    return z, As, Ap
+
+
 def process_results(results, inputs, filename):
 
     runs = len(results)
