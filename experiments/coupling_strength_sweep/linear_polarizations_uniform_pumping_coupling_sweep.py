@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
 
     while condition(batch_idx, args):
-        fibers = [generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3) for _ in range(args.runs_per_batch)]
+        fibers = [(generate_perturbation_angles(args.correlation_length, args.dz, args.fiber_length * 1e3)) for _ in range(args.runs_per_batch)]
 
         # propagate 
         results = pool.starmap(exp.run, fibers)
