@@ -57,11 +57,6 @@ parser.add_argument("-s", "--save", action="store_true")
 parser.add_argument("-S", "--save-data", action="store_true")
 
 args = parser.parse_args()
-As, Ap, z, Lk, Ps0 = read_from_files(args, index=-1)
-num_files = len(As)
-
-std = []
-mean = []
 
 
 def compute_gain_statistics(args, index=None):
