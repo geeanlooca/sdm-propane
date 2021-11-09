@@ -128,7 +128,7 @@ else:
     # read from npz data file
     data = np.load(args.directory)
     Lk = data['Lk']
-    mean = data['mean']
+    mean = data['average_gain']
     std = data['std']
 
 
