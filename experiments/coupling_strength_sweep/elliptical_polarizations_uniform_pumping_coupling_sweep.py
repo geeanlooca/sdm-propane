@@ -1,3 +1,11 @@
+import sys
+import os
+
+# add path containing the code and data files
+current_path = os.path.dirname(os.path.abspath(__file__))
+experiments_path = os.path.dirname(current_path)
+root_path = os.path.dirname(experiments_path)
+experiments_path = sys.path.append(root_path)
 
 from perturbation_angles import generate_perturbation_angles
 from utils import process_results_fixed_polarizations, write_metadata, cmd_parser, build_params_string
@@ -7,14 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing
 from stats_manager import OnlineMeanManager
-import sys
-import os
 
-# add path containing the code and data files
-current_path = os.path.dirname(os.path.abspath(__file__))
-experiments_path = os.path.dirname(current_path)
-root_path = os.path.dirname(experiments_path)
-experiments_path = sys.path.append(root_path)
 
 
 # %%
