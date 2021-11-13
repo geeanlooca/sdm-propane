@@ -24,6 +24,7 @@ def get_coupling_strength(K):
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-a", default=0.2, type=float)
 args = parser.parse_args()
 logger = logging.getLogger()
 
@@ -60,7 +61,7 @@ kappa_e = get_coupling_strength(Ke)
 print("Ke strength: ", get_coupling_strength(Ke))
 print("Kb strength: ", get_coupling_strength(Kb))
 
-factors = np.logspace(0, 5)
+factors = np.logspace(0, 7)
 Lcoupling =  factors * Lbeta
 
 delta_ns = []
@@ -74,8 +75,8 @@ for L in Lcoupling:
     # coupling matrix is the sum of the two, with the 
     # same coupling strength
 
-    bire_strength = total_strength / 2
-    ellip_strength = total_strength / 2
+    bire_strength = total_strength  * args.a
+    ellip_strength = total_strength * (1 - args.a)
 
     # get the equivalent physical parameters
     delta_n = fiber.birefringence(bire_strength)
@@ -85,14 +86,12 @@ for L in Lcoupling:
     delta_ns.append(delta_n)
 
     # double check
-    Ke = fiber.core_ellipticity_coupling_matrix(gamma=gamma)
-    Kb = fiber.birefringence_coupling_matrix(delta_n=delta_n)
 
-    K = Kb + Ke
+    K = bire_strength * Kb / kappa_b +  ellip_strength * Ke / kappa_e
 
-    bire_strength_2 = get_coupling_strength(Kb)
-    ellip_strength_2 = get_coupling_strength(Ke)
     total_strength_2 = get_coupling_strength(K)
+
+    print(2 * np.pi / total_strength, 2 * np.pi / total_strength_2)
 
     
     # assert_error(2 * np.pi / bire_strength, 2*np.pi/bire_strength_2, str=f"Birefringence {L}")
@@ -106,10 +105,17 @@ def convert(x):
 def invert(x):
     return x / Lbeta
 
+bir_perc = args.a * 100
+ell_perc = (1 - args.a) * 100
 sec_ax = ax.secondary_xaxis("top", functions=(convert, invert))
 sec_ax.set_xlabel(r"$L_{\kappa}$ [m]")
 ax.loglog(factors, gammas, label=r"$\gamma$")
 ax.loglog(factors, delta_ns, label=r"$\delta n$")
 ax.set_xlabel(r"$L_{\kappa} / L_{\beta}$" )
 ax.legend()
+plt.suptitle(f"Biref.: {bir_perc}%   Ellip: {ell_perc}%")
+plt.tight_layout()
 plt.show()
+
+
+# %%

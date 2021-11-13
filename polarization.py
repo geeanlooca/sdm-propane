@@ -183,3 +183,5 @@ def plot_stokes_trajectory(sop, plot_sphere=False, jones=False, plot_kw={}, scat
     ax.xaxis.labelpad = 15
     ax.yaxis.labelpad = 15
     ax.zaxis.labelpad = 15
+
+

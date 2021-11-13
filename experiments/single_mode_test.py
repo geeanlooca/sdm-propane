@@ -4,6 +4,7 @@ sys.path.append("/home/gianluca/sdm-propane")
 from scipy.constants import epsilon_0 as e0
 from perturbation_angles import generate_perturbation_angles
 import raman_linear_coupling
+import raman_linear_coupling_optim
 from fiber import StepIndexFiber
 from scipy.optimize import nonlin
 from scipy.constants import Planck as hp, lambda2nu
@@ -17,7 +18,7 @@ import os
 # %%
 
 
-# np.random.seed(1)
+np.random.seed(1)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-S", "--signal-power", default=1e-6, type=float)
@@ -110,8 +111,8 @@ Pp0 = args.power * 1e-3
 Ps0 = args.signal_power
 Ap0 = np.zeros((num_modes_p,)).astype("complex128")
 As0 = np.zeros((num_modes_s,)).astype("complex128")
-Ap0[0::2] = np.sqrt(Pp0)
-As0[1::2] = np.sqrt(Ps0)
+Ap0[2::2] = np.sqrt(Pp0)
+As0[0::2] = np.sqrt(Ps0)
 
 pump_attenuation = 0.2 * 1e-3 * np.log(10) / 10
 signal_attenuation = 0.2 * 1e-3 * np.log(10) / 10
@@ -143,6 +144,7 @@ thetas = generate_perturbation_angles(correlation_length, dz, fiber_length)
 
 
 propagation_function = raman_linear_coupling.propagate
+propagation_function2 = raman_linear_coupling_optim.propagate
 
 if not args.kerr:
     nonlinear_params['sigma'] *= 0
@@ -186,8 +188,6 @@ z, Ap, As = propagation_function(
     undepleted_pump=args.undepleted_pump,
     signal_coupling=args.coupling,
     pump_coupling=args.coupling,
-    signal_spm=True,
-    pump_spm=True,
 )
 end = time.perf_counter()
 print("Time: ", (end - start))

@@ -11,30 +11,40 @@ import numpy as np
 from scipy.constants import lambda2nu
 
 from fiber import StepIndexFiber
+from fibers.available_fibers import SIF2Modes, SIF4Modes
 from polarization import hyperstokes_to_jones
 import raman_linear_coupling
+import raman_linear_coupling_optim
 
 from experiment import Experiment
 
+
 class UniformPumpingExperiment(Experiment):
 
-    def __init__(self, args) -> None:
+    def __init__(self, args, fiber: StepIndexFiber) -> None:
         super().__init__()
 
         self.args = args
 
-        fiber_path = os.path.join(root_path, "fibers")
-
-        self.clad_index = 1.46
-        self.delta = 0.005
-        self.core_radius=6
-        self.clad_radius=60
 
         if args.numpy_seed:
             np.random.seed(args.numpy_seed)
 
-        self.fiber = StepIndexFiber(clad_index=self.clad_index, delta=self.delta,
-                                    core_radius=self.core_radius, clad_radius=self.clad_radius, data_path=fiber_path)
+        if args.modes == 2:
+            self.fiber = SIF2Modes
+        elif args.modes == 4:
+            self.fiber = SIF4Modes
+        else:
+            raise RuntimeError("Invalid number of modes")
+
+
+        self.propagator = raman_linear_coupling_optim.propagate
+        self.percent = 0
+
+        if "percent" in args and args.percent > 0:
+            self.propagator = raman_linear_coupling.propagate
+            self.percent = args.percent
+            
 
         self.signal_wavelength = 1550
         self.pump_wavelength = 1459.45
@@ -114,7 +124,7 @@ class UniformPumpingExperiment(Experiment):
         self.nonlinear_params['bW'] = np.conj(self.nonlinear_params['bW'])
 
     def propagate(self, As0, Ap0, thetas):
-        z, Ap, As = raman_linear_coupling.propagate(
+        z, Ap, As = self.propagator(
             As0,
             Ap0,
             self.fiber_length,
@@ -132,8 +142,7 @@ class UniformPumpingExperiment(Experiment):
             undepleted_pump=False,
             signal_coupling=True,
             pump_coupling=True,
-            signal_spm=True,
-            pump_spm=True,
+            self.percent
         )
 
         return z, As, Ap

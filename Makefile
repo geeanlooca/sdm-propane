@@ -5,6 +5,7 @@ INC = -Ipropagators/common -I/usr/include/mkl
 
 raman_linear_coupling:
 	$(CC) $(CCOPT) $(PYBIND) $(INC) propagators/raman_linear_coupling/raman_linear_coupling.cpp propagators/common/matrix_exponential.cpp -o raman_linear_coupling$(shell python3-config --extension-suffix) -lmkl_rt -m64 
+	$(CC) $(CCOPT) $(PYBIND) $(INC) propagators/raman_linear_coupling/raman_linear_coupling_optim.cpp propagators/common/matrix_exponential.cpp -o raman_linear_coupling_optim$(shell python3-config --extension-suffix) -lmkl_rt -m64 
 
 common:
 	$(CC) $(CCOPT) $(PYBIND) $(INC) propagators/common/matrix_exponential_binding.cpp propagators/common/matrix_exponential.cpp -o matrix_exponential$(shell python3-config --extension-suffix) -lmkl_rt -m64

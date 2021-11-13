@@ -250,8 +250,6 @@ void compute_nonlinear_propagation(
     MKL_Complex16 bW,
     double *Q_signal[],
     double *Q_pump[],
-    bool signal_spm_xpm,
-    bool pump_spm_xpm,
     bool undepleted_pump
 )
 {
@@ -281,79 +279,36 @@ void compute_nonlinear_propagation(
     // SPM and XPM contributions: terms 1, 2 of the Nonlinear Polarization
     // *******************************************************************
 
-    //
-    // Pump
-    //
-    if (pump_spm_xpm)
+
+    for (size_t h = 0; h < num_modes_signal; h++)
     {
-        for (size_t h = 0; h < num_modes_pump; h++)
-        {
-            MKL_Complex16 total_interaction = 0;
-            for (size_t i = 0; i < num_modes_pump; i++)
-                for (size_t j = 0; j < num_modes_pump; j++)
-                    for (size_t k = 0; k < num_modes_pump; k++)
-                    {
-                        float nu = h;
-                        float mu = i;
-                        float eta = j;
-                        float rho = k;
+        MKL_Complex16 total_interaction = 0;
+        for (size_t i = 0; i < num_modes_signal; i++)
+            for (size_t j = 0; j < num_modes_signal; j++)
+                for (size_t k = 0; k < num_modes_signal; k++)
+                {
+                    float nu = h;
+                    float mu = i;
+                    float eta = j;
+                    float rho = k;
 
-                        int index = get_4d_index(
-                            nu, rho, mu, eta, 
-                            num_modes_pump,
-                            num_modes_pump,
-                            num_modes_pump,
-                            num_modes_pump);
+                    int index = get_4d_index(
+                        nu, rho, mu, eta, 
+                        num_modes_signal,
+                        num_modes_signal,
+                        num_modes_signal,
+                        num_modes_signal);
 
-                        MKL_Complex16 N1 = Q1p[index] * y0p[i] * y0p[j] * std::conj(y0p[k]);
-                        MKL_Complex16 N2 = Q2p[index] * std::conj(y0p[i]) * y0p[j] * y0p[k];
+                    MKL_Complex16 N1 = Q1s[index] * y0s[i] * y0s[j] * std::conj(y0s[k]);
+                    MKL_Complex16 N2 = Q2s[index] * std::conj(y0s[i]) * y0s[j] * y0s[k];
 
-                        total_interaction +=  ( 
-                            E0/8 * (sigma + 2.0 * b0) * N1 + 
-                            E0/4*(sigma + 2.0 * a0 * b0) * N2
-                            );
-                    }
-
-            y[num_modes_signal + h] = imag * omega_pump / 4.0 * total_interaction;
-        }
-    }
-
-    //
-    // Signal
-    //
-
-    if (signal_spm_xpm)
-    {
-        for (size_t h = 0; h < num_modes_signal; h++)
-        {
-            MKL_Complex16 total_interaction = 0;
-            for (size_t i = 0; i < num_modes_signal; i++)
-                for (size_t j = 0; j < num_modes_signal; j++)
-                    for (size_t k = 0; k < num_modes_signal; k++)
-                    {
-                        float nu = h;
-                        float mu = i;
-                        float eta = j;
-                        float rho = k;
-
-                        int index = get_4d_index(
-                            nu, rho, mu, eta, 
-                            num_modes_signal,
-                            num_modes_signal,
-                            num_modes_signal,
-                            num_modes_signal);
-
-                        MKL_Complex16 N1 = Q1s[index] * y0s[i] * y0s[j] * std::conj(y0s[k]);
-                        MKL_Complex16 N2 = Q2s[index] * std::conj(y0s[i]) * y0s[j] * y0s[k];
-
-                        total_interaction +=  ( 
-                            E0/8 * (sigma + 2.0 * b0) * N1 + 
-                            E0/4*(sigma + 2.0 * a0 * b0) * N2
-                            );
-                    }
-            y[h] += imag * omega_pump / 4.0 * total_interaction;
-        } 
-    }
+                    total_interaction +=  ( 
+                        E0/8 * (sigma + 2.0 * b0) * N1 + 
+                        E0/4*(sigma + 2.0 * a0 * b0) * N2
+                        );
+                }
+        y[h] += imag * omega_pump / 4.0 * total_interaction;
+    } 
 
     // ***************************************************************
     // Raman contribution: terms 3, 4, 5 of the Nonlinear Polarization
@@ -408,6 +363,37 @@ void compute_nonlinear_propagation(
                     }
 
             y[num_modes_signal + h] += imag * omega_pump / 4.0 * total_contribution;
+        }
+
+        for (size_t h = 0; h < num_modes_pump; h++)
+        {
+            MKL_Complex16 total_interaction = 0;
+            for (size_t i = 0; i < num_modes_pump; i++)
+                for (size_t j = 0; j < num_modes_pump; j++)
+                    for (size_t k = 0; k < num_modes_pump; k++)
+                    {
+                        float nu = h;
+                        float mu = i;
+                        float eta = j;
+                        float rho = k;
+
+                        int index = get_4d_index(
+                            nu, rho, mu, eta, 
+                            num_modes_pump,
+                            num_modes_pump,
+                            num_modes_pump,
+                            num_modes_pump);
+
+                        MKL_Complex16 N1 = Q1p[index] * y0p[i] * y0p[j] * std::conj(y0p[k]);
+                        MKL_Complex16 N2 = Q2p[index] * std::conj(y0p[i]) * y0p[j] * y0p[k];
+
+                        total_interaction +=  ( 
+                            E0/8 * (sigma + 2.0 * b0) * N1 + 
+                            E0/4*(sigma + 2.0 * a0 * b0) * N2
+                            );
+                    }
+
+            y[num_modes_signal + h] += imag * omega_pump / 4.0 * total_interaction;
         }
 
     }
@@ -480,8 +466,6 @@ void nonlinear_RK4(
     MKL_Complex16 bW,
     double *Q_signal[],
     double *Q_pump[],
-    bool signal_spm_xpm,
-    bool pump_spm_xpm,
     bool undepleted_pump
 )
 {
@@ -512,7 +496,7 @@ void nonlinear_RK4(
 
     // k1 = f(y0)
     compute_nonlinear_propagation(y0, k1, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
-                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, undepleted_pump);
 
 
 
@@ -526,7 +510,7 @@ void nonlinear_RK4(
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void *) &scaling_k1, k1, 1, y0tmp1, 1);
 
     compute_nonlinear_propagation(y0tmp1, k2, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
-                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, undepleted_pump);
 
     // compute k3
 
@@ -536,7 +520,7 @@ void nonlinear_RK4(
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void *) &scaling_k2, k2, 1, y0tmp2, 1);
 
     compute_nonlinear_propagation(y0tmp2, k3, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
-                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, undepleted_pump);
 
     // compute k4
     // k4 = f(y0 + h*k3)
@@ -544,7 +528,7 @@ void nonlinear_RK4(
     MKL_Complex16 scaling_k3 = step_size;
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void *) &scaling_k3, k3, 1, y0tmp3, 1);
     compute_nonlinear_propagation(y0tmp3, k4, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
-                sigma, a0, b0, aW, bW, Q_signal, Q_pump, signal_spm_xpm, pump_spm_xpm, undepleted_pump);
+                sigma, a0, b0, aW, bW, Q_signal, Q_pump, undepleted_pump);
 
 
 
@@ -590,10 +574,9 @@ py::tuple integrate(
     std::optional<py::array_t<double>> K_p,
     std::optional<py::dict> nonlinear_params,
     std::optional<bool> undepleted_pump,
-    std::optional<bool> signal_spm,
-    std::optional<bool> pump_spm,
     std::optional<bool> signal_coupling,
-    std::optional<bool> pump_coupling
+    std::optional<bool> pump_coupling,
+    std::optional<float> filter_percent
     )
 {
     double dz = stepsize;
@@ -664,6 +647,7 @@ py::tuple integrate(
     // (if it is not set, assume we want linear coupling)
     bool apply_pump_linear_coupling, apply_signal_linear_coupling;
 
+
     apply_pump_linear_coupling = K_p.has_value();
     apply_signal_linear_coupling = K_s.has_value();
 
@@ -703,14 +687,8 @@ py::tuple integrate(
     }
 
 
-    bool apply_signal_spm = true;
-    bool apply_pump_spm = true;
 
-    if (signal_spm.has_value())
-        apply_signal_spm = signal_spm.value();
 
-    if (pump_spm.has_value())
-        apply_pump_spm = pump_spm.value();
 
     double *_beta_s = (double *)beta_s.request().ptr;
     double *_beta_p = (double *)beta_p.request().ptr;
@@ -790,8 +768,6 @@ py::tuple integrate(
         {
             nonlinear_RK4(ys_tmp, yp_tmp, ys, yp, num_modes_s, num_modes_p,
                     signal_freq, pump_freq, dz, sigma, a0, b0, aW, bW, Q_s, Q_p, 
-                    apply_signal_spm,
-                    apply_pump_spm,
                     undepleted);
         }
 
@@ -827,25 +803,24 @@ py::tuple integrate(
 PYBIND11_MODULE(raman_linear_coupling, m)
 {
     m.def("propagate", &integrate, "Propagator for Raman equations with linear coupling.",
-        py::arg("A_s"),
-        py::arg("A_p"),
-        py::arg("fiber_length"),
-        py::arg("stepsize"),
-        py::arg("indices_s"),
-        py::arg("indices_p"),
-        py::arg("alpha_s"),
-        py::arg("alpha_p"),
-        py::arg("beta_s"),
-        py::arg("beta_p"),
-        py::arg("theta"),
-        py::arg("K_s") = py::none(),
-        py::arg("K_p") = py::none(),
-        py::arg("nonlinear_params") = py::none(),
-        py::arg("undepleted_pump") = py::none(),
-        py::arg("signal_spm") = py::none(),
-        py::arg("pump_spm") = py::none(),
-        py::arg("signal_coupling") = py::none(),
-        py::arg("pump_coupling") = py::none()
+            py::arg("A_s"),
+            py::arg("A_p"),
+            py::arg("fiber_length"),
+            py::arg("stepsize"),
+            py::arg("indices_s"),
+            py::arg("indices_p"),
+            py::arg("alpha_s"),
+            py::arg("alpha_p"),
+            py::arg("beta_s"),
+            py::arg("beta_p"),
+            py::arg("theta"),
+            py::arg("K_s") = py::none(),
+            py::arg("K_p") = py::none(),
+            py::arg("nonlinear_params") = py::none(),
+            py::arg("undepleted_pump") = py::none(),
+            py::arg("signal_coupling") = py::none(),
+            py::arg("pump_coupling") = py::none(),
+            py::arg("filtering_percent") = py::none()
         );
 
     m.def("perturbation_rotation_matrix", &perturbation_rotation_matrix);
