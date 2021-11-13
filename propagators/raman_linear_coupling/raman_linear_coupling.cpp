@@ -664,6 +664,7 @@ py::tuple integrate(
     // (if it is not set, assume we want linear coupling)
     bool apply_pump_linear_coupling, apply_signal_linear_coupling;
 
+
     apply_pump_linear_coupling = K_p.has_value();
     apply_signal_linear_coupling = K_s.has_value();
 

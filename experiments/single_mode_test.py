@@ -17,7 +17,7 @@ import os
 # %%
 
 
-# np.random.seed(1)
+np.random.seed(1)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-S", "--signal-power", default=1e-6, type=float)
@@ -110,8 +110,8 @@ Pp0 = args.power * 1e-3
 Ps0 = args.signal_power
 Ap0 = np.zeros((num_modes_p,)).astype("complex128")
 As0 = np.zeros((num_modes_s,)).astype("complex128")
-Ap0[0::2] = np.sqrt(Pp0)
-As0[1::2] = np.sqrt(Ps0)
+Ap0[2::2] = np.sqrt(Pp0)
+As0[0::2] = np.sqrt(Ps0)
 
 pump_attenuation = 0.2 * 1e-3 * np.log(10) / 10
 signal_attenuation = 0.2 * 1e-3 * np.log(10) / 10
