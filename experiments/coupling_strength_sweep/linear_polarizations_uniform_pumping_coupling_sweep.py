@@ -41,7 +41,8 @@ if __name__ == "__main__":
 
     args.perturbation_beat_length = Lk[id]
 
-    selected_params = ["fiber_length", "correlation_length", "perturbation_beat_length", "dz"]
+    selected_params = ["modes", "fiber_length", "correlation_length",
+                       "perturbation_beat_length", "dz", "polarization", "percent"]
     params_string = build_params_string(args, selected_params)
 
     exp_name = f"{args.polarization}_linear_pol_uniform_pump_coupling_sweep"
