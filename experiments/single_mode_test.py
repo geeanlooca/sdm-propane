@@ -188,6 +188,7 @@ z, Ap, As = propagation_function(
     undepleted_pump=args.undepleted_pump,
     signal_coupling=args.coupling,
     pump_coupling=args.coupling,
+    filtering_percent=0.01
 )
 end = time.perf_counter()
 print("Time: ", (end - start))

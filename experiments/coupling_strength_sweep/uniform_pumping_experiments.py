@@ -142,7 +142,7 @@ class UniformPumpingExperiment(Experiment):
             undepleted_pump=False,
             signal_coupling=True,
             pump_coupling=True,
-            self.percent
+            filtering_percent=self.percent
         )
 
         return z, As, Ap
