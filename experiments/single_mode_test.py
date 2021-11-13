@@ -4,6 +4,7 @@ sys.path.append("/home/gianluca/sdm-propane")
 from scipy.constants import epsilon_0 as e0
 from perturbation_angles import generate_perturbation_angles
 import raman_linear_coupling
+import raman_linear_coupling_optim
 from fiber import StepIndexFiber
 from scipy.optimize import nonlin
 from scipy.constants import Planck as hp, lambda2nu
@@ -143,6 +144,7 @@ thetas = generate_perturbation_angles(correlation_length, dz, fiber_length)
 
 
 propagation_function = raman_linear_coupling.propagate
+propagation_function2 = raman_linear_coupling_optim.propagate
 
 if not args.kerr:
     nonlinear_params['sigma'] *= 0
@@ -186,8 +188,6 @@ z, Ap, As = propagation_function(
     undepleted_pump=args.undepleted_pump,
     signal_coupling=args.coupling,
     pump_coupling=args.coupling,
-    signal_spm=True,
-    pump_spm=True,
 )
 end = time.perf_counter()
 print("Time: ", (end - start))

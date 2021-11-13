@@ -113,6 +113,8 @@ def cmd_parser():
     parser.add_argument("--min-beat-length", default=1e-5, type=float)
     parser.add_argument("--max-beat-length", default=1e1, type=float)
     parser.add_argument("--max-fibers", default=None, type=int)
+    parser.add_argument("--modes", default=2, type=int)
+    parser.add_argument("--percent", default=0.0, type=float)
 
     return parser
 
