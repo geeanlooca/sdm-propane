@@ -21,7 +21,7 @@ from experiment import Experiment
 
 class UniformPumpingExperiment(Experiment):
 
-    def __init__(self, args, fiber: StepIndexFiber) -> None:
+    def __init__(self, args) -> None:
         super().__init__()
 
         self.args = args
