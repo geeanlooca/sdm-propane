@@ -8,3 +8,8 @@ sandbox/
 *.h5
 
 *.png
+
+*.sif
+*.out
+*err.txt
+*out.txt
