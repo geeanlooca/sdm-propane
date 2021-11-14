@@ -20,16 +20,13 @@ from experiment import Experiment
 
 
 class UniformPumpingExperiment(Experiment):
-
     def __init__(self, args) -> None:
         super().__init__()
 
         self.args = args
 
-
         if args.numpy_seed:
             np.random.seed(args.numpy_seed)
-
 
         if args.modes == 2:
             self.fiber = SIF2Modes()
@@ -38,9 +35,7 @@ class UniformPumpingExperiment(Experiment):
         else:
             raise RuntimeError("Invalid number of modes")
 
-
         self.percent = self.args.percent
-
 
         self.signal_wavelength = 1550
         self.pump_wavelength = 1459.45
@@ -54,48 +49,60 @@ class UniformPumpingExperiment(Experiment):
         self.fiber.load_data(wavelength=self.signal_wavelength)
         self.fiber.load_data(wavelength=self.pump_wavelength)
         self.fiber.load_nonlinear_coefficients(
-            self.signal_wavelength, self.pump_wavelength)
+            self.signal_wavelength, self.pump_wavelength
+        )
 
-        self.Lbeta = self.fiber.modal_beat_length(
-            wavelength=self.signal_wavelength)
+        self.Lbeta = self.fiber.modal_beat_length(wavelength=self.signal_wavelength)
         self.Lpert = args.perturbation_beat_length
 
-
         total_strength = 2 * np.pi / self.Lpert
-        
+
         # in theory, birefringence and core ellipticity act
         # together with the same strength, hence the total
-        # coupling matrix is the sum of the two, with the 
+        # coupling matrix is the sum of the two, with the
         # same coupling strength
 
-        bire_strength = total_strength / 2
-        ellip_strength = total_strength / 2
+        w = args.birefringence_weight
+
+        bire_strength = total_strength * w
+        ellip_strength = total_strength * (1 - w)
 
         # get the equivalent physical parameters
         self.delta_n = self.fiber.birefringence(bire_strength)
         self.gamma = self.fiber.core_ellipticity(ellip_strength)
 
-        Ke_s = self.fiber.core_ellipticity_coupling_matrix(gamma=self.gamma, wavelength=self.signal_wavelength)
-        Kb_s = self.fiber.birefringence_coupling_matrix(delta_n=self.delta_n, wavelength=self.signal_wavelength)
+        Ke_s = self.fiber.core_ellipticity_coupling_matrix(
+            gamma=self.gamma, wavelength=self.signal_wavelength
+        )
+        Kb_s = self.fiber.birefringence_coupling_matrix(
+            delta_n=self.delta_n, wavelength=self.signal_wavelength
+        )
         self.Ke_signal = Ke_s
         self.Kb_signal = Kb_s
         self.Ktot_signal = Kb_s + Ke_s
 
-        Ke_p = self.fiber.core_ellipticity_coupling_matrix(gamma=self.gamma, wavelength=self.pump_wavelength)
-        Kb_p = self.fiber.birefringence_coupling_matrix(delta_n=self.delta_n, wavelength=self.pump_wavelength)
+        Ke_p = self.fiber.core_ellipticity_coupling_matrix(
+            gamma=self.gamma, wavelength=self.pump_wavelength
+        )
+        Kb_p = self.fiber.birefringence_coupling_matrix(
+            delta_n=self.delta_n, wavelength=self.pump_wavelength
+        )
         self.Ktot_pump = Kb_p + Ke_p
 
         self.nonlinear_params = self.fiber.get_raman_coefficients(
-            n2, gR, self.signal_wavelength, self.pump_wavelength, as_dict=True)
+            n2, gR, self.signal_wavelength, self.pump_wavelength, as_dict=True
+        )
 
         self.fiber_length = args.fiber_length * 1e3
         self.correlation_length = args.correlation_length
         self.dz = args.dz
 
         self.indices_s = self.fiber.group_azimuthal_orders(
-            wavelength=self.signal_wavelength)
+            wavelength=self.signal_wavelength
+        )
         self.indices_p = self.fiber.group_azimuthal_orders(
-            wavelength=self.pump_wavelength)
+            wavelength=self.pump_wavelength
+        )
 
         self.num_modes_s = self.fiber.num_modes(self.signal_wavelength)
         self.num_modes_p = self.fiber.num_modes(self.pump_wavelength)
@@ -109,15 +116,17 @@ class UniformPumpingExperiment(Experiment):
         self.alpha_p = pump_attenuation
 
         self.beta_s = self.fiber.propagation_constants(
-            wavelength=self.signal_wavelength, remove_mean=True)
+            wavelength=self.signal_wavelength, remove_mean=True
+        )
         self.beta_p = self.fiber.propagation_constants(
-            wavelength=self.pump_wavelength, remove_mean=True)
+            wavelength=self.pump_wavelength, remove_mean=True
+        )
 
         if self.args.sigma:
-            self.nonlinear_params['sigma'] = 0
+            self.nonlinear_params["sigma"] = 0
 
-        self.nonlinear_params['aW'] = np.conj(self.nonlinear_params['aW'])
-        self.nonlinear_params['bW'] = np.conj(self.nonlinear_params['bW'])
+        self.nonlinear_params["aW"] = np.conj(self.nonlinear_params["aW"])
+        self.nonlinear_params["bW"] = np.conj(self.nonlinear_params["bW"])
 
     def propagate(self, As0, Ap0, thetas):
 
@@ -140,7 +149,7 @@ class UniformPumpingExperiment(Experiment):
                 undepleted_pump=False,
                 signal_coupling=True,
                 pump_coupling=True,
-                filtering_percent=self.percent
+                filtering_percent=self.percent,
             )
         else:
             z, Ap, As = raman_linear_coupling.propagate(
@@ -161,16 +170,15 @@ class UniformPumpingExperiment(Experiment):
                 undepleted_pump=False,
                 signal_coupling=True,
                 pump_coupling=True,
-                filtering_percent=self.percent
+                filtering_percent=self.percent,
             )
-
 
         return z, As, Ap
 
     def metadata(self):
 
         metadata = {
-            "delta_n" : self.delta_n,
+            "delta_n": self.delta_n,
             "gamma": self.gamma,
             "signal_wavelength": self.signal_wavelength,
             "pump_wavelength": self.pump_wavelength,
@@ -178,7 +186,6 @@ class UniformPumpingExperiment(Experiment):
 
         metadata = {**metadata, **vars(self.args)}
         return metadata
-        
 
     def run(self, signal_jones_vector, pump_jones_vector, thetas):
         """
@@ -194,16 +201,17 @@ class UniformPumpingExperiment(Experiment):
 
         signal_power_per_spatial_mode = self.Ps0
 
+        num_pump_modes = int(self.num_modes_p / 2)
 
         # inject power equally among the three spatial modes
-        pump_power_per_spatial_mode = self.Pp0 / 3
+        pump_power_per_spatial_mode = self.Pp0 / num_pump_modes
         input_pump = pump_jones_vector * np.sqrt(pump_power_per_spatial_mode)
 
         input_signal = signal_jones_vector * np.sqrt(signal_power_per_spatial_mode)
 
         z, As, Ap = self.propagate(input_signal, input_pump, thetas)
 
-        # downsample data 
+        # downsample data
         target_points = int(self.fiber_length // self.args.sampling)
         samples = len(z)
         df = int(samples / target_points)
@@ -211,8 +219,8 @@ class UniformPumpingExperiment(Experiment):
         As = As[::df]
         Ap = Ap[::df]
 
-
         return z, As, Ap
+
 
 class ParallelLinearPolarizationsUniformPumpingExperiment(UniformPumpingExperiment):
     def run(self, thetas):
@@ -232,7 +240,7 @@ class ParallelLinearPolarizationsUniformPumpingExperiment(UniformPumpingExperime
 
         return super().run(signal_jones, pump_jones, thetas)
 
-    
+
 class OrthogonalLinearPolarizationsUniformPumpingExperiment(UniformPumpingExperiment):
     def run(self, thetas):
         """
@@ -248,5 +256,61 @@ class OrthogonalLinearPolarizationsUniformPumpingExperiment(UniformPumpingExperi
         # inject power equally among the three spatial modes
         pump_jones = np.zeros((self.num_modes_p,))
         pump_jones[1::2] = 1
+
+        return super().run(signal_jones, pump_jones, thetas)
+
+
+class ParallelEllipticalPolarizationsUniformPumpingExperiment(UniformPumpingExperiment):
+    def run(self, thetas):
+        """
+        Parameters
+        ----------
+            thetas: np.ndarray
+                Array of perturbation angles
+        """
+
+        signal_jones = (
+            np.ones(
+                (
+                    int(
+                        3 * self.num_modes_s / 2,
+                    )
+                )
+            )
+            / np.sqrt(3)
+        )
+        signal_jones = hyperstokes_to_jones(signal_jones)
+
+        pump_jones = (
+            np.ones(
+                (
+                    int(
+                        3 * self.num_modes_p / 2,
+                    )
+                )
+            )
+            / np.sqrt(3)
+        )
+        pump_jones = hyperstokes_to_jones(pump_jones)
+
+        return super().run(signal_jones, pump_jones, thetas)
+
+
+class OrthogonalEllipticalPolarizationsUniformPumpingExperiment(
+    UniformPumpingExperiment
+):
+    def run(self, thetas):
+        """
+        Parameters
+        ----------
+            thetas: np.ndarray
+                Array of perturbation angles
+        """
+
+        signal_jones = np.ones((int(3 * self.num_modes_s / 2),)) / np.sqrt(3)
+        signal_jones = hyperstokes_to_jones(signal_jones)
+
+        pump_jones = -np.ones((int(3 * self.num_modes_p / 2),)) / np.sqrt(3)
+        pump_jones = hyperstokes_to_jones(pump_jones)
 
         return super().run(signal_jones, pump_jones, thetas)
