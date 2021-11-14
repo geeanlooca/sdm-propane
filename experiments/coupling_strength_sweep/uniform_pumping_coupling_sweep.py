@@ -46,7 +46,7 @@ def build_experiment(args: argparse.Namespace) -> Experiment:
         else:
             exp = ParallelEllip(args)
 
-    return args
+    return exp
 
 
 def condition(i: int, args: argparse.Namespace) -> bool:
@@ -180,7 +180,6 @@ if __name__ == "__main__":
 
         plt.figure(1)
         output_signal_manager.plot(output_power_filename)
-        plt.savefig()
         plt.pause(0.05)
 
         plt.figure(2)
