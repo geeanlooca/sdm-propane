@@ -100,9 +100,7 @@ if __name__ == "__main__":
     parser = cmd_parser()
     args = parser.parse_args()
 
-    Lk_min = args.min_beat_length
-    Lk_max = args.max_beat_length
-
+    # read slurm parameters from the environment
     try:
         id = int(os.getenv("SLURM_ARRAY_TASK_ID"))
         num_beat_lengths = int(os.getenv("SLURM_ARRAY_TASK_COUNT"))
@@ -110,11 +108,14 @@ if __name__ == "__main__":
         id = 0
         num_beat_lengths = 1
 
+    # sets the perturbation beat length
+    Lk_min = args.min_beat_length
+    Lk_max = args.max_beat_length
     Lk = np.logspace(Lk_min, Lk_max, num_beat_lengths)
-
     args.perturbation_beat_length = Lk[id]
     perturbation_beat_length = Lk[id]
 
+    # build the experiment and the output directory structure
     exp = build_experiment(args)
     output_dir, img_dir = make_output_directory(args)
     output_filename = os.path.join(output_dir, f"{perturbation_beat_length=}m.h5")
@@ -146,7 +147,6 @@ if __name__ == "__main__":
         print(output_power_filename)
         print(signal_power_filename)
         print(pump_power_filename)
-
         raise SystemExit
 
     write_metadata(output_filename, exp)
