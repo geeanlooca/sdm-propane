@@ -1,6 +1,8 @@
+import argparse
 import sys
 import os
 import pathlib
+from typing import Tuple
 
 # add path containing the code and data files
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +17,7 @@ from utils import (
     cmd_parser,
     build_params_string,
 )
+from experiment import Experiment
 from uniform_pumping_experiments import (
     OrthogonalEllipticalPolarizationsUniformPumpingExperiment as OrthogonalEllip,
     ParallelEllipticalPolarizationsUniformPumpingExperiment as ParallelEllip,
@@ -30,7 +33,23 @@ from stats_manager import OnlineMeanManager
 # %%
 
 
-def condition(i, args):
+def build_experiment(args: argparse.Namespace) -> Experiment:
+    """Build an Experiment given its parameters"""
+    if args.polarization == "linear":
+        if args.polarization_orientation == "orthogonal":
+            exp = OrthogonalLinear(args)
+        else:
+            exp = ParallelLinear(args)
+    else:
+        if args.polarization_orientation == "orthogonal":
+            exp = OrthogonalEllip(args)
+        else:
+            exp = ParallelEllip(args)
+
+    return args
+
+
+def condition(i: int, args: argparse.Namespace) -> bool:
     """Check when to stop the loop"""
     simulated_fibers = args.runs_per_batch * i
     if args.forever:
@@ -47,8 +66,33 @@ def condition(i, args):
         return i < args.batches
 
 
-def dBm(x):
+def dBm(x: np.ndarray) -> np.ndarray:
+    """Convert to dBm"""
     return 10 * np.log10(x * 1e3)
+
+
+def make_output_directory(args: argparse.Namespace) -> Tuple[str, str]:
+    """Names and creates the output directories given the input arguments"""
+    output_dir = os.path.join(
+        args.output_dir,
+        "uniform_pumping",
+        f"{args.modes}modes",
+        f"{args.polarization}_{args.polarization_orientation}_polarizations",
+        f"Lc_{args.correlation_length}m",
+        f"fiber_length_{args.fiber_length}km"
+        + f"-dz_{args.dz}m"
+        + f"-birefringence_{args.birefringence_weight}"
+        f"-filtering_{args.percent}"
+        f"-pump_power_{args.total_pump_power}mW",
+    )
+
+    img_dir = os.path.join(output_dir, "convergence_imgs")
+
+    if not args.dry_run:
+        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(img_dir).mkdir(parents=True, exist_ok=True)
+
+    return output_dir, img_dir
 
 
 if __name__ == "__main__":
@@ -71,55 +115,41 @@ if __name__ == "__main__":
     args.perturbation_beat_length = Lk[id]
     perturbation_beat_length = Lk[id]
 
-    selected_params = [
-        "modes",
-        "fiber_length",
-        "correlation_length",
-        "perturbation_beat_length",
-        "dz",
-        "polarization",
-        "percent",
-    ]
-    params_string = build_params_string(args, selected_params)
+    exp = build_experiment(args)
+    output_dir, img_dir = make_output_directory(args)
+    output_filename = os.path.join(output_dir, f"{perturbation_beat_length=}m.h5")
 
-    exp_name = f"{args.polarization}_{args.polarization_orientation}_uniform_pumping"
-
-    output_dir = os.path.join(
-        "uniform_pumping",
-        f"{args.modes}modes-"
-        + f"{args.fiber_length}km-"
-        + f"{args.polarization}-{args.polarization_orientation}-"
-        + f"birefringence_{args.birefringence_weight}-"
-        f"filtering_{args.percent}",
+    pump_power_filename = os.path.join(
+        img_dir, f"mean_pump_power-{perturbation_beat_length=}m.png"
+    )
+    signal_power_filename = os.path.join(
+        img_dir, f"mean_signal_power-{perturbation_beat_length=}m.png"
     )
 
-    img_dir = os.path.join(output_dir, "convergence_imgs")
-    filename = os.path.join(output_dir, f"{perturbation_beat_length=}m.h5")
-
-    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(img_dir).mkdir(parents=True, exist_ok=True)
-
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
-    batch_idx = 0
+    output_power_filename = os.path.join(
+        img_dir,
+        f"output_power_convergence-{perturbation_beat_length=}m.png",
+    )
 
     signal_manager = OnlineMeanManager("Signal power")
     pump_manager = OnlineMeanManager("Pump power")
     output_signal_manager = OnlineMeanManager("Output signal power")
 
-    # generate parallel input polarizations between signal and pump
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    batch_idx = 0
 
-    if args.polarization == "linear":
-        if args.polarization_orientation == "orthogonal":
-            exp = OrthogonalLinear(args)
-        else:
-            exp = ParallelLinear(args)
-    else:
-        if args.polarization_orientation == "orthogonal":
-            exp = OrthogonalEllip(args)
-        else:
-            exp = ParallelEllip(args)
+    if args.dry_run:
+        print("Dry run")
+        print(output_dir)
+        print(img_dir)
+        print(output_filename)
+        print(output_power_filename)
+        print(signal_power_filename)
+        print(pump_power_filename)
 
-    write_metadata(filename, exp)
+        raise SystemExit
+
+    write_metadata(output_filename, exp)
 
     while condition(batch_idx, args):
         fibers = [
@@ -134,7 +164,9 @@ if __name__ == "__main__":
         results = pool.map(exp.run, params)
 
         # process results and save data to file
-        z, As, Ap = process_results_fixed_polarizations(results, params, filename)
+        z, As, Ap = process_results_fixed_polarizations(
+            results, params, output_filename
+        )
 
         Ps = np.abs(As) ** 2
         Ps_pol = Ps[:, :, ::2] + Ps[:, :, 1::2]
@@ -147,12 +179,7 @@ if __name__ == "__main__":
         pump_manager.update(dBm(Pp_pol), accumulate=False)
 
         plt.figure(1)
-        output_signal_manager.plot(
-            os.path.join(
-                img_dir,
-                f"output_power_convergence-{perturbation_beat_length=}m.png",
-            )
-        )
+        output_signal_manager.plot(output_power_filename)
         plt.savefig()
         plt.pause(0.05)
 
@@ -170,10 +197,7 @@ if __name__ == "__main__":
         plt.ylabel("Power [dBm]")
         plt.title("Average signal power and standard dev. in each spatial mode")
         plt.tight_layout()
-
-        plt.savefig(
-            os.path.join(img_dir, f"mean_signal_power-{perturbation_beat_length=}m.png")
-        )
+        plt.savefig(signal_power_filename)
         plt.pause(0.05)
 
         plt.figure(3)
@@ -190,9 +214,7 @@ if __name__ == "__main__":
         plt.ylabel("Power [dBm]")
         plt.title("Average pump power and standard dev. in each spatial mode")
         plt.tight_layout()
-        plt.savefig(
-            os.path.join(img_dir, f"mean_pump_power-{perturbation_beat_length=}m.png")
-        )
+        plt.savefig(pump_power_filename)
         plt.pause(0.05)
 
         batch_idx += 1

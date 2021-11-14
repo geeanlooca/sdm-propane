@@ -159,6 +159,8 @@ def cmd_parser():
         default="parallel",
     )
     parser.add_argument("--birefringence-weight", default=0.5, type=float)
+    parser.add_argument("--output-dir", default=".")
+    parser.add_argument("--dry-run", action="store_true")
 
     return parser
 
