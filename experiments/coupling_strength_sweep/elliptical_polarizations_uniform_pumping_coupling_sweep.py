@@ -1,5 +1,6 @@
 import sys
 import os
+import pathlib
 
 # add path containing the code and data files
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -93,10 +94,10 @@ if __name__ == "__main__":
     )
 
     img_dir = os.path.join(output_dir, "convergence_imgs")
-
     filename = os.path.join(output_dir, f"{perturbation_beat_length=}m.h5")
 
-    print(output_dir)
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(img_dir).mkdir(parents=True, exist_ok=True)
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     batch_idx = 0
