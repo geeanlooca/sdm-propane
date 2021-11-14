@@ -24,8 +24,10 @@ CMD=python -u -W  ignore ../uniform_pumping_coupling_sweep.py
 BIND=--bind ~/peg/results:/results
 
 singularity exec $BIND $SINGULARITY_IMG  $CMD\
-        --correlation-length $LC --dz $DZ \
-        --fiber-length $FIBER_LENGTH --total-pump-power 1000 \
+        --correlation-length $LC \
+        --dz $DZ \
+        --fiber-length $FIBER_LENGTH \
+        --total-pump-power 1000 \
         --signal-power-per-mode 1e-4 \
         --sampling 500 \
         --runs-per-batch 32 \
@@ -38,4 +40,4 @@ singularity exec $BIND $SINGULARITY_IMG  $CMD\
         --max-fibers ${MAX_FIBERS} \
         --modes $MODES \
         --percent $PERCENT \
-        --output-dir .
+        --output-dir /results
