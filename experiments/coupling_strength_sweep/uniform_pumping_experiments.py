@@ -55,10 +55,8 @@ class UniformPumpingExperiment(Experiment):
 
         self.Lbeta = self.fiber.modal_beat_length(wavelength=self.signal_wavelength)
         self.Lpert = args.perturbation_beat_length
-
-        total_strength = 2 * np.pi / self.Lpert
-
         w = args.birefringence_weight
+
         self.Ktot_signal = self.get_coupling_matrix(
             w, self.Lpert, self.signal_wavelength
         )
