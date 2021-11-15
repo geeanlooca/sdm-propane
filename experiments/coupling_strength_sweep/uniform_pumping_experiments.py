@@ -8,6 +8,7 @@ root_path = os.path.dirname(experiments_path)
 experiments_path = sys.path.append(root_path)
 
 import numpy as np
+import scipy.linalg
 from scipy.constants import lambda2nu
 
 from fiber import StepIndexFiber
@@ -43,8 +44,8 @@ class UniformPumpingExperiment(Experiment):
         self.signal_freq = lambda2nu(self.signal_wavelength * 1e-9)
         self.pump_freq = lambda2nu(self.pump_wavelength * 1e-9)
 
-        n2 = args.n2
-        gR = args.gR
+        self.n2 = args.n2
+        self.gR = args.gR
 
         self.fiber.load_data(wavelength=self.signal_wavelength)
         self.fiber.load_data(wavelength=self.pump_wavelength)
@@ -57,40 +58,14 @@ class UniformPumpingExperiment(Experiment):
 
         total_strength = 2 * np.pi / self.Lpert
 
-        # in theory, birefringence and core ellipticity act
-        # together with the same strength, hence the total
-        # coupling matrix is the sum of the two, with the
-        # same coupling strength
-
         w = args.birefringence_weight
-
-        bire_strength = total_strength * w
-        ellip_strength = total_strength * (1 - w)
-
-        # get the equivalent physical parameters
-        self.delta_n = self.fiber.birefringence(bire_strength)
-        self.gamma = self.fiber.core_ellipticity(ellip_strength)
-
-        Ke_s = self.fiber.core_ellipticity_coupling_matrix(
-            gamma=self.gamma, wavelength=self.signal_wavelength
+        self.Ktot_signal = self.get_coupling_matrix(
+            w, self.Lpert, self.signal_wavelength
         )
-        Kb_s = self.fiber.birefringence_coupling_matrix(
-            delta_n=self.delta_n, wavelength=self.signal_wavelength
-        )
-        self.Ke_signal = Ke_s
-        self.Kb_signal = Kb_s
-        self.Ktot_signal = Kb_s + Ke_s
-
-        Ke_p = self.fiber.core_ellipticity_coupling_matrix(
-            gamma=self.gamma, wavelength=self.pump_wavelength
-        )
-        Kb_p = self.fiber.birefringence_coupling_matrix(
-            delta_n=self.delta_n, wavelength=self.pump_wavelength
-        )
-        self.Ktot_pump = Kb_p + Ke_p
+        self.Ktot_pump = self.get_coupling_matrix(w, self.Lpert, self.pump_wavelength)
 
         self.nonlinear_params = self.fiber.get_raman_coefficients(
-            n2, gR, self.signal_wavelength, self.pump_wavelength, as_dict=True
+            self.n2, self.gR, self.signal_wavelength, self.pump_wavelength, as_dict=True
         )
 
         self.fiber_length = args.fiber_length * 1e3
@@ -127,6 +102,28 @@ class UniformPumpingExperiment(Experiment):
 
         self.nonlinear_params["aW"] = np.conj(self.nonlinear_params["aW"])
         self.nonlinear_params["bW"] = np.conj(self.nonlinear_params["bW"])
+
+    def get_coupling_strength(self, K):
+        eigvals = scipy.linalg.eigvals(K)
+        strength = eigvals.max() - eigvals.min()
+        return strength
+
+    def get_coupling_matrix(
+        self, birefringence_weight, perturbation_beat_length, wavelength
+    ):
+
+        total_strength = 2 * np.pi / perturbation_beat_length
+        Ke_s = self.fiber.core_ellipticity_coupling_matrix(wavelength=wavelength)
+        Kb_s = self.fiber.birefringence_coupling_matrix(wavelength=wavelength)
+
+        kappa_e = self.get_coupling_strength(Ke_s)
+        kappa_b = self.get_coupling_strength(Kb_s)
+
+        bire_strength = total_strength * birefringence_weight
+        ellip_strength = total_strength * (1 - birefringence_weight)
+
+        K_total = bire_strength * Kb_s / kappa_b + ellip_strength * Ke_s / kappa_e
+        return K_total
 
     def propagate(self, As0, Ap0, thetas):
 
@@ -178,8 +175,8 @@ class UniformPumpingExperiment(Experiment):
     def metadata(self):
 
         metadata = {
-            "delta_n": self.delta_n,
-            "gamma": self.gamma,
+            "gR": self.gR,
+            "n2": self.n2,
             "signal_wavelength": self.signal_wavelength,
             "pump_wavelength": self.pump_wavelength,
         }
