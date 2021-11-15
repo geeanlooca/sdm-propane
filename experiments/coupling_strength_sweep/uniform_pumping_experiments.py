@@ -111,62 +111,41 @@ class UniformPumpingExperiment(Experiment):
     ):
 
         total_strength = 2 * np.pi / perturbation_beat_length
-        Ke_s = self.fiber.core_ellipticity_coupling_matrix(wavelength=wavelength)
-        Kb_s = self.fiber.birefringence_coupling_matrix(wavelength=wavelength)
+        Ke = self.fiber.core_ellipticity_coupling_matrix(wavelength=wavelength)
+        Kb = self.fiber.birefringence_coupling_matrix(wavelength=wavelength)
 
-        kappa_e = self.get_coupling_strength(Ke_s)
-        kappa_b = self.get_coupling_strength(Kb_s)
+        kappa_e = self.get_coupling_strength(Ke)
+        kappa_b = self.get_coupling_strength(Kb)
 
         bire_strength = total_strength * birefringence_weight
         ellip_strength = total_strength * (1 - birefringence_weight)
 
-        K_total = bire_strength * Kb_s / kappa_b + ellip_strength * Ke_s / kappa_e
+        K_total = bire_strength * Kb / kappa_b + ellip_strength * Ke / kappa_e
+
         return K_total
 
     def propagate(self, As0, Ap0, thetas):
 
-        if self.args.percent > 0:
-            z, Ap, As = raman_linear_coupling_optim.propagate(
-                As0,
-                Ap0,
-                self.fiber_length,
-                self.dz,
-                self.indices_s,
-                self.indices_p,
-                self.alpha_s,
-                self.alpha_p,
-                self.beta_s,
-                self.beta_p,
-                thetas,
-                K_s=self.Ktot_signal,
-                K_p=self.Ktot_pump,
-                nonlinear_params=self.nonlinear_params,
-                undepleted_pump=False,
-                signal_coupling=True,
-                pump_coupling=True,
-                filtering_percent=self.percent,
-            )
-        else:
-            z, Ap, As = raman_linear_coupling.propagate(
-                As0,
-                Ap0,
-                self.fiber_length,
-                self.dz,
-                self.indices_s,
-                self.indices_p,
-                self.alpha_s,
-                self.alpha_p,
-                self.beta_s,
-                self.beta_p,
-                thetas,
-                K_s=self.Ktot_signal,
-                K_p=self.Ktot_pump,
-                nonlinear_params=self.nonlinear_params,
-                undepleted_pump=False,
-                signal_coupling=True,
-                pump_coupling=True,
-                filtering_percent=self.percent,
-            )
+        z, Ap, As = raman_linear_coupling_optim.propagate(
+            As0,
+            Ap0,
+            self.fiber_length,
+            self.dz,
+            self.indices_s,
+            self.indices_p,
+            self.alpha_s,
+            self.alpha_p,
+            self.beta_s,
+            self.beta_p,
+            thetas,
+            K_s=self.Ktot_signal,
+            K_p=self.Ktot_pump,
+            nonlinear_params=self.nonlinear_params,
+            undepleted_pump=False,
+            signal_coupling=True,
+            pump_coupling=True,
+            filtering_percent=self.percent,
+        )
 
         return z, As, Ap
 
