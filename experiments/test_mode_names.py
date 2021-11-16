@@ -21,6 +21,24 @@ signal_freq = lambda2nu(signal_wavelength * 1e-9)
 
 fiber.load_data(wavelength=signal_wavelength)
 
-print(fiber.mode_names())
-print(fiber.spatial_mode_names())
-print(fiber.group_names())
+
+Ke = np.real(fiber.core_ellipticity_coupling_matrix())
+
+Ke = Ke / np.max(np.abs(Ke))
+Kb = np.real(fiber.birefringence_coupling_matrix())
+Kb = Kb / np.max(np.abs(Kb))
+
+
+# print(fiber.mode_names())
+# print(fiber.spatial_mode_names())
+# print(fiber.group_names())
+print(fiber.group_orders())
+print(fiber.group_degeneracies())
+
+plt.set_cmap("inferno")
+
+plt.imshow(np.log10(np.abs(Ke)))
+plt.grid(False)
+plt.colorbar()
+
+plt.show()
