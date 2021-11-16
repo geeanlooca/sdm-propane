@@ -110,7 +110,7 @@ def get_mode_names(num_modes):
 
 
 def get_markers(num_modes):
-    markers = ["o", "s", "x", "^", "D", "*", "v", ">", "<"]
+    markers = ["o", "s", "x", "^", ".", "*", "D", ">", "<"]
     return markers[:num_modes]
 
 

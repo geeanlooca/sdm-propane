@@ -205,6 +205,7 @@ class StepIndexFiber(Fiber):
         """Get the slices of the block of the coupling matrix for the two specified groups."""
 
         group_orders = self.group_orders(wavelength=wavelength)
+
         group_a_idx = group_orders.index(group_a)
         group_b_idx = group_orders.index(group_b)
 
@@ -212,10 +213,10 @@ class StepIndexFiber(Fiber):
         degen_a = group_degen[group_a_idx]
         degen_b = group_degen[group_b_idx]
 
-        start_idx_a = sum(group_degen[: (group_a_idx - 1)])
-        start_idx_b = sum(group_degen[: (group_b_idx - 1)])
-        stop_idx_a = start_idx_a + degen_b
-        stop_idx_b = start_idx_b + degen_a
+        start_idx_a = sum(group_degen[:(group_a_idx)])
+        start_idx_b = sum(group_degen[:(group_b_idx)])
+        stop_idx_a = start_idx_a + degen_a
+        stop_idx_b = start_idx_b + degen_b
 
         return slice(start_idx_a, stop_idx_a), slice(start_idx_b, stop_idx_b)
 
