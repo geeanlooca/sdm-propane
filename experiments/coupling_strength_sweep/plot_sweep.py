@@ -80,43 +80,6 @@ def compute_gain_statistics(args, index=None):
     return Lk, average_gain, std
 
 
-# def compute_angle(a, b, axis=0):
-#     norm_a = np.linalg.norm(a, axis=axis)
-#     norm_b = np.linalg.norm(b, axis=axis)
-#     ab = np.sum(a * b, axis=axis)
-#     return ab
-
-
-# S_s = polarization.hyperjones_to_hyperstokes(As, axis=-1)
-# S_p = polarization.hyperjones_to_hyperstokes(Ap, axis=-1)
-
-# S_s_01 = S_s[:, :, :, (0,1,2)]
-# S_p_01 = S_p[:, :, :, (0,1,2)]
-# S_s_11a = S_s[:, :, :, (3,4,5)]
-# S_p_11a = S_p[:, :, :, (3,4,5)]
-# S_s_11b = S_s[:, :, :, (6,7,8)]
-# S_p_11b = S_p[:, :, :, (6,7,8)]
-
-# angle = compute_angle(S_s_11b, S_p_11b, axis=-1)
-# angle_avg = angle.mean(axis=1)
-
-# plt.figure()
-
-# for x in range(len(Lk)):
-#     plt.plot(z * 1e-3, angle_avg[x], label=rf"$L_{{\kappa}} = {Lk[x]}$ m")
-# plt.xlabel(r"$z$ [km]")
-# plt.ylabel(r"$\langle \cos\theta \rangle$")
-# plt.ylim((-1, 1))
-# plt.legend()
-# plt.tight_layout()
-
-
-# lengths = np.array([10])
-# dz = z[1] - z[0]
-
-# idx = lengths * 1e3 / dz
-
-
 # check if passed parameter is a directory
 if os.path.isdir(args.directory):
     Lk, mean, std = compute_gain_statistics(args, index=-1)
@@ -135,10 +98,27 @@ else:
     std = data["std"]
 
 
+def get_mode_names(num_modes):
+    """From the number of spatial modes, generate the appropriate mode names."""
+
+    if num_modes == 3:
+        return ["LP01", "LP11a", "LP11b"]
+    elif num_modes == 6:
+        return ["LP01", "LP11a", "LP11b", "LP21a", "LP21b", "LP02"]
+    else:
+        raise ValueError("Invalid number of modes.")
+
+
+def get_markers(num_modes):
+    markers = ["o", "s", "x", "^", "D", "*", "v", ">", "<"]
+    return markers[:num_modes]
+
+
 nmodes = mean.shape[-1]
-mode_labels = ["LP01", "LP11a", "LP11b"]
-markers = ["o", "s", "x", "^"]
+mode_labels = get_mode_names(nmodes)
+markers = get_markers(nmodes)
 colors = [f"C{m}" for m in range(nmodes)]
+
 mode_handles = [
     lines.Line2D([], [], color=colors[x], marker=markers[x], label=mode_labels[x])
     for x in range(nmodes)

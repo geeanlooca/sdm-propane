@@ -21,6 +21,7 @@ class Fiber(ABC):
         coupling_birefringence = eigvals.max() - eigvals.min()
         return coupling_birefringence
 
+
 class StepIndexFiber(Fiber):
     def __init__(self, clad_index, delta, core_radius, clad_radius, data_path=None):
 
@@ -29,14 +30,14 @@ class StepIndexFiber(Fiber):
         else:
             self.path = data_path
 
-        self.clad_index = clad_index 
-        self.delta = delta 
+        self.clad_index = clad_index
+        self.delta = delta
         self.core_radius = core_radius
         self.clad_radius = clad_radius
         self.core_index = self.clad_index / np.sqrt(1 - 2 * self.delta)
-        self.wavelength = [  ]
-        self.Ke = {} 
-        self.Kb = {} 
+        self.wavelength = []
+        self.Ke = {}
+        self.Kb = {}
         self.gamma0 = {}
         self.delta_n0 = {}
         self._mode_names = {}
@@ -56,7 +57,6 @@ class StepIndexFiber(Fiber):
         self._Q3 = {}
         self._Q4 = {}
         self._Q5 = {}
-        
 
     def load_data(self, wavelength, mesh_size=1, data_path=None, modes=None):
         if data_path is None:
@@ -64,10 +64,15 @@ class StepIndexFiber(Fiber):
 
         _modes = modes if modes else "*"
 
-        filename = StepIndexFiber.get_filename(modes=_modes, clad_index=self.clad_index,
-                         delta=self.delta, core_radius=self.core_radius,
-                         clad_radius=self.clad_radius,
-                         wavelength=wavelength, mesh_size=mesh_size)
+        filename = StepIndexFiber.get_filename(
+            modes=_modes,
+            clad_index=self.clad_index,
+            delta=self.delta,
+            core_radius=self.core_radius,
+            clad_radius=self.clad_radius,
+            wavelength=wavelength,
+            mesh_size=mesh_size,
+        )
 
         filepath = os.path.join(data_path, filename)
 
@@ -86,13 +91,17 @@ class StepIndexFiber(Fiber):
         self._azimuthal_orders[wavelength] = [a for a, b in orders]
         self._orders[wavelength] = orders
         self._group_orders[wavelength] = list(dict.fromkeys(orders))
-        self._group_azimuthal_orders[wavelength] = [a for a, b in self._group_orders[wavelength]]
+        self._group_azimuthal_orders[wavelength] = [
+            a for a, b in self._group_orders[wavelength]
+        ]
 
-        group_degen = [ 2 if l==0 else 4 for l in self._group_azimuthal_orders[wavelength]]
-        degen = [ 2 if l==0 else 4 for l in self._azimuthal_orders[wavelength]]
+        group_degen = [
+            2 if l == 0 else 4 for l in self._group_azimuthal_orders[wavelength]
+        ]
+        degen = [2 if l == 0 else 4 for l in self._azimuthal_orders[wavelength]]
 
         self._degeneracies[wavelength] = degen
-        self._group_degeneracies[wavelength] =  group_degen
+        self._group_degeneracies[wavelength] = group_degen
 
         Ke = self._force_linear_coupling_simmetry(data["Ke"])
         Kb = self._force_linear_coupling_simmetry(data["Kb"])
@@ -109,12 +118,11 @@ class StepIndexFiber(Fiber):
         self.Kb[wavelength] = Kb / kappa_b
         self.Ke[wavelength] = Ke / kappa_e
 
-        self.gamma0[wavelength] =  gamma0
+        self.gamma0[wavelength] = gamma0
         self.delta_n0[wavelength] = delta_n0
         self._num_groups[wavelength] = data["num_groups"]
         self.betas[wavelength] = np.array(data["beta"])
         self._num_modes[wavelength] = data["num_modes"]
-
 
     def _mode_orders_from_name(self, name):
         a, r = name[2:4]
@@ -131,7 +139,7 @@ class StepIndexFiber(Fiber):
 
     def _force_linear_coupling_simmetry(self, K):
         """Remove the imaginary part and make the matrix symmetric."""
-        _K  = np.real(K)
+        _K = np.real(K)
         K = np.tril(K) + np.triu(K.T, 1)
         return K
 
@@ -146,7 +154,7 @@ class StepIndexFiber(Fiber):
 
         References
         ----------
-        [1] L. Palmieri, ‘Coupling mechanism in multimode fibers’, in 
+        [1] L. Palmieri, ‘Coupling mechanism in multimode fibers’, in
             Next-Generation Optical Communication: Components, Sub-Systems,
             and Systems III, Feb. 2014, vol. 9009, p. 90090G, doi: 10.1117/12.2042763.
         """
@@ -171,7 +179,7 @@ class StepIndexFiber(Fiber):
         References
         ----------
         [1] L. Palmieri, ‘Coupling mechanism in multimode fibers’,
-            in Next-Generation Optical Communication: Components, 
+            in Next-Generation Optical Communication: Components,
             Sub-Systems, and Systems III, Feb. 2014, vol. 9009,
             p. 90090G, doi: 10.1117/12.2042763.
         """
@@ -192,7 +200,7 @@ class StepIndexFiber(Fiber):
             return True
 
         return False
-        
+
     def _get_block_indeces(self, group_a, group_b, wavelength):
         """Get the slices of the block of the coupling matrix for the two specified groups."""
 
@@ -204,8 +212,8 @@ class StepIndexFiber(Fiber):
         degen_a = group_degen[group_a_idx]
         degen_b = group_degen[group_b_idx]
 
-        start_idx_a = sum(group_degen[:(group_a_idx-1)])
-        start_idx_b = sum(group_degen[:(group_b_idx-1)])
+        start_idx_a = sum(group_degen[: (group_a_idx - 1)])
+        start_idx_b = sum(group_degen[: (group_b_idx - 1)])
         stop_idx_a = start_idx_a + degen_b
         stop_idx_b = start_idx_b + degen_a
 
@@ -223,12 +231,18 @@ class StepIndexFiber(Fiber):
         self.a_response = data["a"]
         self.b_response = data["b"]
 
-    def load_nonlinear_coefficients(self, signal_wavelength, pump_wavelength, data_path=None, mesh_size=1):
-        filename = StepIndexFiber.get_nonlinear_filename(clad_index=self.clad_index,
-                         delta=self.delta, core_radius=self.core_radius,
-                         clad_radius=self.clad_radius,
-                         signal_wavelength=signal_wavelength, pump_wavelength=pump_wavelength,
-                         mesh_size=mesh_size)
+    def load_nonlinear_coefficients(
+        self, signal_wavelength, pump_wavelength, data_path=None, mesh_size=1
+    ):
+        filename = StepIndexFiber.get_nonlinear_filename(
+            clad_index=self.clad_index,
+            delta=self.delta,
+            core_radius=self.core_radius,
+            clad_radius=self.clad_radius,
+            signal_wavelength=signal_wavelength,
+            pump_wavelength=pump_wavelength,
+            mesh_size=mesh_size,
+        )
 
         if data_path is None:
             data_path = self.path
@@ -278,15 +292,16 @@ class StepIndexFiber(Fiber):
         a = wavelength_a
         b = wavelength_b
         return self._Q5[(a, b)]
-        
-    def get_raman_coefficients(self, n2, gR, signal_wavelength, pump_wavelength, as_dict=False):
+
+    def get_raman_coefficients(
+        self, n2, gR, signal_wavelength, pump_wavelength, as_dict=False
+    ):
         signal_freq = lambda2nu(signal_wavelength * 1e-9)
         pump_freq = lambda2nu(pump_wavelength * 1e-9)
-        n = self.core_index 
+        n = self.core_index
 
         a_interp = scipy.interpolate.interp1d(self.frequency_shift, self.a_response)
         b_interp = scipy.interpolate.interp1d(self.frequency_shift, self.b_response)
-
 
         f_shift = (pump_freq - signal_freq) * 1e-12
         aW = a_interp(f_shift)
@@ -299,8 +314,7 @@ class StepIndexFiber(Fiber):
         a0 = scaling * np.real(a_interp(0))
         b0 = scaling * np.real(b_interp(0))
 
-
-        sigma = ( n2 * 4 * c0 * e0 * n**2 - 2 * ( a0 + b0) ) * 2 / 3
+        sigma = (n2 * 4 * c0 * e0 * n ** 2 - 2 * (a0 + b0)) * 2 / 3
 
         if as_dict:
             d = {
@@ -329,18 +343,17 @@ class StepIndexFiber(Fiber):
         else:
             return sigma, a0, b0, aW, bW
 
-
     @property
     def attenuation_coefficient(self):
         return self._alpha
 
     @attenuation_coefficient.setter
     def attenuation_coefficient(self, value):
-        self._alpha =  value
+        self._alpha = value
 
     @property
     def length(self):
-        return self._length 
+        return self._length
 
     @length.setter
     def length(self, value):
@@ -362,7 +375,9 @@ class StepIndexFiber(Fiber):
         return self.get_param("_azimuthal_orders", wavelength=wavelength)
 
     def group_azimuthal_orders(self, wavelength=None):
-        return np.array(self.get_param("_group_azimuthal_orders", wavelength=wavelength)).astype("int32")
+        return np.array(
+            self.get_param("_group_azimuthal_orders", wavelength=wavelength)
+        ).astype("int32")
 
     def num_modes(self, wavelength=None):
         return self.get_param("_num_modes", wavelength=wavelength)
@@ -371,8 +386,26 @@ class StepIndexFiber(Fiber):
         return self.get_param("_num_groups", wavelength=wavelength)
 
     def mode_names(self, wavelength=None):
+        """Polarization and spatial mode names, e.g. LP11ax."""
         return self.get_param("_mode_names", wavelength=wavelength)
-    
+
+    def spatial_mode_names(self, wavelength=None):
+        """Spatial mode names, e.g. LP11a."""
+        mode_names = self.mode_names(wavelength=wavelength)
+        spatial_names = [m[:-1] for m in mode_names]
+        return spatial_names[::2]
+
+    def group_names(self, wavelength=None):
+        """Degenerate mode groups names, e.g. LP11."""
+        spatial_names = self.spatial_mode_names(wavelength=wavelength)
+        # keep only the first 4 characters (LPxy)
+        group_names = [m[:4] for m in spatial_names]
+
+        # remove duplicates keeping the order
+        group_names = list(dict.fromkeys(group_names))
+
+        return group_names
+
     def get_param(self, param, wavelength=None):
         if wavelength:
             val = getattr(self, param)[wavelength]
@@ -412,7 +445,9 @@ class StepIndexFiber(Fiber):
         delta_beta = np.max(beta) - np.min(beta)
         return 2 * np.pi / delta_beta
 
-    def birefringence_coupling_matrix(self, coupling_strength=None, delta_n=None, wavelength=None):
+    def birefringence_coupling_matrix(
+        self, coupling_strength=None, delta_n=None, wavelength=None
+    ):
         K = self.get_param("Kb", wavelength=wavelength)
 
         if coupling_strength is None and delta_n is None:
@@ -425,7 +460,9 @@ class StepIndexFiber(Fiber):
             strength = self.birefringence_strength(delta_n)
             return strength * K
 
-    def core_ellipticity_coupling_matrix(self, coupling_strength=None, gamma=None, wavelength=None):
+    def core_ellipticity_coupling_matrix(
+        self, coupling_strength=None, gamma=None, wavelength=None
+    ):
         K = self.get_param("Ke", wavelength=wavelength)
 
         if coupling_strength is None and gamma is None:
@@ -450,25 +487,41 @@ class StepIndexFiber(Fiber):
         return 2 * np.pi * self.core_radius / wavelength * self.numerical_aperture
 
     @staticmethod
-    def get_filename(modes, clad_index, delta, core_radius, clad_radius, wavelength, mesh_size=1):
-        filename = (f"coupling_coefficients-{modes}modes-clad_index={clad_index:.4f}-"
-                    f"Delta={delta:.3f}-core_radius={core_radius:.2f}um-"
-                    f"clad_radius={clad_radius:.2f}um-wavelength={wavelength:.2f}nm-mesh_size={mesh_size}.mat")
+    def get_filename(
+        modes, clad_index, delta, core_radius, clad_radius, wavelength, mesh_size=1
+    ):
+        filename = (
+            f"coupling_coefficients-{modes}modes-clad_index={clad_index:.4f}-"
+            f"Delta={delta:.3f}-core_radius={core_radius:.2f}um-"
+            f"clad_radius={clad_radius:.2f}um-wavelength={wavelength:.2f}nm-mesh_size={mesh_size}.mat"
+        )
 
-        return filename 
+        return filename
 
     @staticmethod
-    def get_nonlinear_filename(clad_index, delta, core_radius, clad_radius, signal_wavelength, pump_wavelength, mesh_size=1):
-        filename = (f"nonlinear_coefficients-clad_index={clad_index:.4f}-"
-                    f"Delta={delta:.3f}-core_radius={core_radius:.2f}um-"
-                    f"clad_radius={clad_radius:.2f}um-signal_wavelength={signal_wavelength:.2f}nm-"
-                    f"pump_wavelength={pump_wavelength:.2f}nm-mesh_size={mesh_size}.mat")
+    def get_nonlinear_filename(
+        clad_index,
+        delta,
+        core_radius,
+        clad_radius,
+        signal_wavelength,
+        pump_wavelength,
+        mesh_size=1,
+    ):
+        filename = (
+            f"nonlinear_coefficients-clad_index={clad_index:.4f}-"
+            f"Delta={delta:.3f}-core_radius={core_radius:.2f}um-"
+            f"clad_radius={clad_radius:.2f}um-signal_wavelength={signal_wavelength:.2f}nm-"
+            f"pump_wavelength={pump_wavelength:.2f}nm-mesh_size={mesh_size}.mat"
+        )
 
-        return filename 
+        return filename
 
 
 if __name__ == "__main__":
-    fiber = StepIndexFiber(clad_index=1.46, delta=0.005, core_radius=6, clad_radius=60, data_path="fibers")
+    fiber = StepIndexFiber(
+        clad_index=1.46, delta=0.005, core_radius=6, clad_radius=60, data_path="fibers"
+    )
 
     signal_wavelength = 1550
     pump_wavelength = 1459.45
@@ -481,22 +534,22 @@ if __name__ == "__main__":
 
     delta_n = fiber.birefringence(2 * np.pi / Lpert, wavelength=signal_wavelength)
 
-    K_signal = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=signal_wavelength)
-    K_pump = fiber.birefringence_coupling_matrix(delta_n=delta_n, wavelength=pump_wavelength)
+    K_signal = fiber.birefringence_coupling_matrix(
+        delta_n=delta_n, wavelength=signal_wavelength
+    )
+    K_pump = fiber.birefringence_coupling_matrix(
+        delta_n=delta_n, wavelength=pump_wavelength
+    )
 
     fiber.load_raman_data()
 
     n2 = 2.18e-18
     gR = 1.5e-11
 
-    sigma, a0, b0, aW, bW = fiber.get_raman_coefficients(n2, gR, signal_wavelength * 1e-9, pump_wavelength * 1e-9) 
+    sigma, a0, b0, aW, bW = fiber.get_raman_coefficients(
+        n2, gR, signal_wavelength * 1e-9, pump_wavelength * 1e-9
+    )
 
     fiber.load_nonlinear_coefficients(signal_wavelength, pump_wavelength)
 
     print(fiber.group_degeneracies(signal_wavelength))
-
-
-
-
-
-

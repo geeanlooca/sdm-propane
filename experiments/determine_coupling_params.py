@@ -28,10 +28,20 @@ def get_coupling_strength(K):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-a", default=0.2, type=float)
-args = parser.parse_args()
-logger = logging.getLogger()
+parser.add_argument("-a", default=0.5, type=float)
+parser.add_argument("-t", "--tex", action="store_true")
 
+args = parser.parse_args()
+
+if args.tex:
+    plt.rcParams.update(
+        {
+            "text.latex.preamble": r"\usepackage{mathpazo}",
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": ["palatino"],
+        }
+    )
 
 fiber = StepIndexFiber(
     clad_index=1.4545, delta=0.005, core_radius=6, clad_radius=60, data_path="fibers"
@@ -119,12 +129,12 @@ def invert(x):
 bir_perc = args.a * 100
 ell_perc = (1 - args.a) * 100
 sec_ax = ax.secondary_xaxis("top", functions=(convert, invert))
-sec_ax.set_xlabel(r"$L_{\kappa}$ [m]")
+sec_ax.set_xlabel(r"$L_{\kappa}$ [m]", labelpad=10)
 ax.loglog(factors, gammas, label=r"$\gamma$")
 ax.loglog(factors, delta_ns, label=r"$\delta n$")
 ax.set_xlabel(r"$L_{\kappa} / L_{\beta}$")
 ax.legend()
-plt.suptitle(f"Biref.: {bir_perc}%   Ellip: {ell_perc}%")
+# plt.suptitle(f"Biref.: {bir_perc}%   Ellip: {ell_perc}%")
 plt.tight_layout()
 plt.show()
 
