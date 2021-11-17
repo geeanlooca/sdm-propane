@@ -59,6 +59,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("directory", nargs="?")
 parser.add_argument("-s", "--save", action="store_true")
 parser.add_argument("-S", "--save-data", action="store_true")
+parser.add_argument("-L", "--lengths", nargs="+", type=float)
 
 args = parser.parse_args()
 
@@ -70,29 +71,30 @@ def compute_gain_statistics(args, index=None):
     average_gain = []
     for i in range(num_files):
         Ps = np.abs(As[i]) ** 2
-        Ps_pol = Ps[:, ::2] + Ps[:, 1::2]
+        Ps_pol = Ps[:, :, ::2] + Ps[:, :, 1::2]
         gain = dB(Ps_pol / Ps0[i])
         average_gain.append(gain.mean(axis=0))
         std.append(gain.std(axis=0))
 
     average_gain = np.stack(average_gain)
     std = np.stack(std)
-    return Lk, average_gain, std
+    return z, Lk, average_gain, std
 
 
 # check if passed parameter is a directory
 if os.path.isdir(args.directory):
-    Lk, mean, std = compute_gain_statistics(args, index=-1)
+    z, Lk, mean, std = compute_gain_statistics(args, index=None)
 
     # save arrays in numpy file
     if args.save_data:
         data_file = os.path.join(args.directory, "data.npz")
-        np.savez(data_file, Lk=Lk, average_gain=mean, std=std)
+        np.savez(data_file, z=z, Lk=Lk, average_gain=mean, std=std)
 else:
     # read from npz data file
     data = np.load(args.directory)
     args.directory = os.path.dirname(args.directory)
 
+    z = data["z"]
     Lk = data["Lk"]
     mean = data["average_gain"]
     std = data["std"]
@@ -124,26 +126,40 @@ mode_handles = [
     for x in range(nmodes)
 ]
 
-fig, axs = plt.subplots(nrows=2, sharex=True)
-for m in range(nmodes):
-    color = colors[m]
-    marker = markers[m]
-    axs[0].semilogx(
-        Lk, mean[:, m].squeeze(), color=color, marker=marker, fillstyle="none"
-    )
-    axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
 
-    axs[1].semilogx(
-        Lk, std[:, m].squeeze(), color=color, marker=marker, fillstyle="none"
-    )
-    axs[1].set_ylabel(r"$\sigma_G$ [dB]")
-    axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
-axs[0].legend(handles=mode_handles)
-plt.tight_layout()
+if args.lengths is None:
+    args.lengths = [z[-1] / 1000]
+
+args.lengths = [x if x > 0 else z[-1] / 1000 for x in args.lengths]
+args.lengths = np.array(args.lengths)
+
+dz = z[1] - z[0]
+idx = np.round(args.lengths * 1000 / dz).astype(int)
+actual_lengths = idx * dz / 1000
 
 
-if args.save:
-    output_file = os.path.join(args.directory, "plot.png")
-    plt.savefig(output_file, dpi=500)
-else:
+for i, length in zip(idx, actual_lengths):
+
+    fig, axs = plt.subplots(nrows=2, sharex=True, num=f"{length:.2f}km")
+    for m in range(nmodes):
+        color = colors[m]
+        marker = markers[m]
+        axs[0].semilogx(
+            Lk, mean[:, i, m].squeeze(), color=color, marker=marker, fillstyle="none"
+        )
+        axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
+
+        axs[1].semilogx(
+            Lk, std[:, i, m].squeeze(), color=color, marker=marker, fillstyle="none"
+        )
+        axs[1].set_ylabel(r"$\sigma_G$ [dB]")
+        axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
+    axs[0].legend(handles=mode_handles)
+    plt.tight_layout()
+
+    if args.save:
+        output_file = os.path.join(args.directory, f"plot_{length}km.png")
+        plt.savefig(output_file, dpi=500)
+
+if not args.save:
     plt.show()
