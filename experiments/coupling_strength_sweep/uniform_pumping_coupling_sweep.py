@@ -73,17 +73,24 @@ def dBm(x: np.ndarray) -> np.ndarray:
 
 def make_output_directory(args: argparse.Namespace) -> Tuple[str, str]:
     """Names and creates the output directories given the input arguments"""
+    filename = (
+        f"fiber_length_{args.fiber_length}km"
+        + f"-dz_{args.dz}m"
+        + f"-birefringence_{args.birefringence_weight}"
+        f"-filtering_{args.percent}"
+        f"-pump_power_{args.total_pump_power}mW"
+    )
+
+    if args.no_kerr:
+        filename += "-no_kerr"
+
     output_dir = os.path.join(
         args.output_dir,
         "uniform_pumping",
         f"{args.modes}modes",
         f"{args.polarization}_{args.polarization_orientation}_polarizations",
         f"Lc_{args.correlation_length}m",
-        f"fiber_length_{args.fiber_length}km"
-        + f"-dz_{args.dz}m"
-        + f"-birefringence_{args.birefringence_weight}"
-        f"-filtering_{args.percent}"
-        f"-pump_power_{args.total_pump_power}mW",
+        filename,
     )
 
     img_dir = os.path.join(output_dir, "convergence_imgs")

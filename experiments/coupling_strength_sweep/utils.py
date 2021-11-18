@@ -161,6 +161,7 @@ def cmd_parser():
     parser.add_argument("--birefringence-weight", default=0.5, type=float)
     parser.add_argument("--output-dir", default=".")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--no-kerr", action="store_true")
 
     return parser
 

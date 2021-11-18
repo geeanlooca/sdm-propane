@@ -95,8 +95,10 @@ class UniformPumpingExperiment(Experiment):
             wavelength=self.pump_wavelength, remove_mean=True
         )
 
-        if self.args.sigma:
+        if self.args.no_kerr:
             self.nonlinear_params["sigma"] = 0
+            self.nonlinear_params["a0"] = 0
+            self.nonlinear_params["b0"] = 0
 
         self.nonlinear_params["aW"] = np.conj(self.nonlinear_params["aW"])
         self.nonlinear_params["bW"] = np.conj(self.nonlinear_params["bW"])
