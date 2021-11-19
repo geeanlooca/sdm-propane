@@ -39,7 +39,7 @@ double find_max_abs(double *Q, int length)
     double max = 0.0;
     for (int i = 0; i < length; i++)
     {
-        if (fabs(Q[i]) > max)
+        if (fabs(Q[i]) >= max)
         {
             max = fabs(Q[i]);
         }
@@ -52,7 +52,7 @@ int find_above_threshold(double *Q, int length, double threshold)
     int above_threshold = 0;
     for (int i = 0; i < length; i++)
     {
-        if (fabs(Q[i]) > threshold)
+        if (fabs(Q[i]) >= threshold)
         {
             above_threshold += 1;
         }
@@ -60,7 +60,7 @@ int find_above_threshold(double *Q, int length, double threshold)
     return above_threshold;
 }
 
-std::tuple<double*, int*, int> find_Q_coefficients_and_indices(double *Q, double percent, int m1, int m2, int m3, int m4)
+std::tuple<double *, int *, int> find_Q_coefficients_and_indices(double *Q, double percent, int m1, int m2, int m3, int m4)
 {
     int total_num = m1 * m2 * m3 * m4;
     double max_abs = find_max_abs(Q, total_num);
@@ -68,7 +68,6 @@ std::tuple<double*, int*, int> find_Q_coefficients_and_indices(double *Q, double
 
     double *Q_filtered = (double *)mkl_malloc(num_above_threshold * sizeof(double), 64);
     int *indices = (int *)mkl_malloc(4 * num_above_threshold * sizeof(int), 64);
-
 
     int index = 0;
     for (int i = 0; i < m1; i++)
@@ -96,7 +95,6 @@ std::tuple<double*, int*, int> find_Q_coefficients_and_indices(double *Q, double
 
     return std::make_tuple(Q_filtered, indices, num_above_threshold);
 }
-
 
 void RKRt(double *K, double *R, double *RKRt, int n)
 {
@@ -270,7 +268,6 @@ void compute_linear_operator_eigenvals(double *beta, double alpha, double *K, MK
     mkl_free(intermediate);
 }
 
-
 MKL_Complex16 id(MKL_Complex16 x)
 {
     return x;
@@ -291,9 +288,9 @@ void compute_nonlinear_contribution(
     int num_indices,
     MKL_Complex16 coefficient,
     double omega,
-    std::function<MKL_Complex16 (MKL_Complex16)> f1,
-    std::function<MKL_Complex16 (MKL_Complex16)> f2,
-    std::function<MKL_Complex16 (MKL_Complex16)> f3)
+    std::function<MKL_Complex16(MKL_Complex16)> f1,
+    std::function<MKL_Complex16(MKL_Complex16)> f2,
+    std::function<MKL_Complex16(MKL_Complex16)> f3)
 {
     MKL_Complex16 imag = MKL_Complex16(0, 1);
 
@@ -327,7 +324,8 @@ void compute_nonlinear_propagation(
     int *indices_pump[],
     int num_indices_signal[],
     int num_indices_pump[],
-    bool undepleted_pump)
+    bool undepleted_pump,
+    bool kerr)
 {
 
     MKL_Complex16 *y0s;
@@ -362,31 +360,36 @@ void compute_nonlinear_propagation(
     MKL_Complex16 c4s = E0 / 4 * (sigma + b0 + bW);
     MKL_Complex16 c5s = E0 / 4 * (sigma + 2.0 * aW + b0);
 
-
     //
     // Pump
     //
 
     if (!undepleted_pump)
     {
-        compute_nonlinear_contribution(&y[num_modes_signal], y0p, y0p, y0p, Q1p, indices_pump[0], num_indices_pump[0], c1p, omega_pump, con, id, id);
-        compute_nonlinear_contribution(&y[num_modes_signal], y0p, y0p, y0p, Q2p, indices_pump[1], num_indices_pump[1], c2p, omega_pump, id, con, id);
+        if (kerr)
+        {
+            compute_nonlinear_contribution(&y[num_modes_signal], y0p, y0p, y0p, Q1p, indices_pump[0], num_indices_pump[0], c1p, omega_pump, con, id, id);
+            compute_nonlinear_contribution(&y[num_modes_signal], y0p, y0p, y0p, Q2p, indices_pump[1], num_indices_pump[1], c2p, omega_pump, id, con, id);
+        }
+
         compute_nonlinear_contribution(&y[num_modes_signal], y0p, y0s, y0s, Q3p, indices_pump[2], num_indices_pump[2], c3p, omega_pump, id, con, id);
         compute_nonlinear_contribution(&y[num_modes_signal], y0s, y0s, y0p, Q4p, indices_pump[3], num_indices_pump[3], c4p, omega_pump, con, id, id);
         compute_nonlinear_contribution(&y[num_modes_signal], y0s, y0s, y0p, Q5p, indices_pump[4], num_indices_pump[4], c5p, omega_pump, id, con, id);
     }
 
-
     //
     // Signal
     //
 
-    compute_nonlinear_contribution(y, y0s, y0s, y0s, Q1s, indices_signal[0], num_indices_signal[0], c1s, omega_signal, con,  id, id);
-    compute_nonlinear_contribution(y, y0s, y0s, y0s, Q2s, indices_signal[1], num_indices_signal[1], c2s, omega_signal, id, con, id);
+    if (kerr)
+    {
+        compute_nonlinear_contribution(y, y0s, y0s, y0s, Q1s, indices_signal[0], num_indices_signal[0], c1s, omega_signal, con, id, id);
+        compute_nonlinear_contribution(y, y0s, y0s, y0s, Q2s, indices_signal[1], num_indices_signal[1], c2s, omega_signal, id, con, id);
+    }
+
     compute_nonlinear_contribution(y, y0s, y0p, y0p, Q3s, indices_signal[2], num_indices_signal[2], c3s, omega_signal, id, con, id);
     compute_nonlinear_contribution(y, y0p, y0p, y0s, Q4s, indices_signal[3], num_indices_signal[3], c4s, omega_signal, con, id, id);
     compute_nonlinear_contribution(y, y0p, y0p, y0s, Q5s, indices_signal[4], num_indices_signal[4], c5s, omega_signal, id, con, id);
-
 }
 
 void nonlinear_RK4(
@@ -410,7 +413,10 @@ void nonlinear_RK4(
     int *indices_pump[],
     int num_indices_signal[],
     int num_indices_pump[],
-    bool undepleted_pump)
+    bool undepleted_pump,
+    bool kerr
+    )
+
 {
     MKL_Complex16 *y_new, *y0, *y0tmp1, *y0tmp2, *y0tmp3, *k1, *k2, *k3, *k4;
     y_new = (MKL_Complex16 *)mkl_calloc((num_modes_signal + num_modes_pump), sizeof(MKL_Complex16), 64);
@@ -436,7 +442,7 @@ void nonlinear_RK4(
     // k1 = f(y0)
     compute_nonlinear_propagation(y0, k1, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
                                   sigma, a0, b0, aW, bW, Q_signal, Q_pump, indices_signal, indices_pump, num_indices_signal,
-                                  num_indices_pump, undepleted_pump);
+                                  num_indices_pump, undepleted_pump, kerr);
 
     //
     // compute k2
@@ -449,7 +455,7 @@ void nonlinear_RK4(
 
     compute_nonlinear_propagation(y0tmp1, k2, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
                                   sigma, a0, b0, aW, bW, Q_signal, Q_pump, indices_signal, indices_pump, num_indices_signal,
-                                  num_indices_pump, undepleted_pump);
+                                  num_indices_pump, undepleted_pump, kerr);
 
     // compute k3
 
@@ -460,7 +466,7 @@ void nonlinear_RK4(
 
     compute_nonlinear_propagation(y0tmp2, k3, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
                                   sigma, a0, b0, aW, bW, Q_signal, Q_pump, indices_signal, indices_pump, num_indices_signal,
-                                  num_indices_pump, undepleted_pump);
+                                  num_indices_pump, undepleted_pump, kerr);
 
     // compute k4
     // k4 = f(y0 + h*k3)
@@ -469,7 +475,7 @@ void nonlinear_RK4(
     cblas_zaxpy(num_modes_pump + num_modes_signal, (void *)&scaling_k3, k3, 1, y0tmp3, 1);
     compute_nonlinear_propagation(y0tmp3, k4, num_modes_signal, num_modes_pump, signal_frequency, pump_frequency,
                                   sigma, a0, b0, aW, bW, Q_signal, Q_pump, indices_signal, indices_pump, num_indices_signal,
-                                  num_indices_pump, undepleted_pump);
+                                  num_indices_pump, undepleted_pump, kerr);
 
     MKL_Complex16 scaling = 1.0 / 6.0 * step_size;
     MKL_Complex16 scaling2 = scaling * 2.0;
@@ -514,7 +520,8 @@ py::tuple integrate(
     std::optional<bool> undepleted_pump,
     std::optional<bool> signal_coupling,
     std::optional<bool> pump_coupling,
-    std::optional<float> filter_percent)
+    std::optional<float> filter_percent,
+    bool kerr = true)
 {
     double dz = stepsize;
     int step_count = fiber_length / stepsize + 1;
@@ -545,7 +552,6 @@ py::tuple integrate(
     for (size_t i = 0; i < num_groups_p; i++)
         num_modes_p += (indices_buf_p[i] > 0) ? 4 : 2;
 
-
     if (nonlinear_params.has_value())
     {
         nonlinear_propagation = true;
@@ -573,9 +579,7 @@ py::tuple integrate(
 
         float percent = filter_percent.value_or(0.01f);
 
-
-
-        std::tuple<double *, int*, int> result;
+        std::tuple<double *, int *, int> result;
         result = find_Q_coefficients_and_indices(Q_p[0], percent, num_modes_p, num_modes_p, num_modes_p, num_modes_p);
         Qfiltered_p[0] = std::get<0>(result);
         filtered_indices_p[0] = std::get<1>(result);
@@ -629,7 +633,6 @@ py::tuple integrate(
         Qfiltered_s[4] = std::get<0>(result);
         filtered_indices_s[4] = std::get<1>(result);
         num_filtered_s[4] = std::get<2>(result);
-
     }
 
     bool undepleted = undepleted_pump.has_value() ? undepleted_pump.value() : false;
@@ -641,7 +644,6 @@ py::tuple integrate(
     {
         z_buf[i] = i * dz;
     }
-
 
     // determine if we need to simulate  linear coupling
     // we simulate it if the K matrices have value (not None) and
@@ -767,7 +769,7 @@ py::tuple integrate(
             nonlinear_RK4(ys_tmp, yp_tmp, ys, yp, num_modes_s, num_modes_p,
                           signal_freq, pump_freq, dz, sigma, a0, b0, aW, bW, Qfiltered_s, Qfiltered_p,
                           filtered_indices_s, filtered_indices_p, num_filtered_s, num_filtered_p,
-                          undepleted);
+                          undepleted, kerr);
         }
     }
 
@@ -799,23 +801,23 @@ py::tuple integrate(
 PYBIND11_MODULE(raman_linear_coupling_optim, m)
 {
     m.def("propagate", &integrate, "Propagator for Raman equations with linear coupling.",
-            py::arg("A_s"),
-            py::arg("A_p"),
-            py::arg("fiber_length"),
-            py::arg("stepsize"),
-            py::arg("indices_s"),
-            py::arg("indices_p"),
-            py::arg("alpha_s"),
-            py::arg("alpha_p"),
-            py::arg("beta_s"),
-            py::arg("beta_p"),
-            py::arg("theta"),
-            py::arg("K_s") = py::none(),
-            py::arg("K_p") = py::none(),
-            py::arg("nonlinear_params") = py::none(),
-            py::arg("undepleted_pump") = py::none(),
-            py::arg("signal_coupling") = py::none(),
-            py::arg("pump_coupling") = py::none(),
-            py::arg("filtering_percent") = py::none()
-        );
+          py::arg("A_s"),
+          py::arg("A_p"),
+          py::arg("fiber_length"),
+          py::arg("stepsize"),
+          py::arg("indices_s"),
+          py::arg("indices_p"),
+          py::arg("alpha_s"),
+          py::arg("alpha_p"),
+          py::arg("beta_s"),
+          py::arg("beta_p"),
+          py::arg("theta"),
+          py::arg("K_s") = py::none(),
+          py::arg("K_p") = py::none(),
+          py::arg("nonlinear_params") = py::none(),
+          py::arg("undepleted_pump") = py::none(),
+          py::arg("signal_coupling") = py::none(),
+          py::arg("pump_coupling") = py::none(),
+          py::arg("filtering_percent") = py::none(),
+          py::arg("kerr") = false);
 }
