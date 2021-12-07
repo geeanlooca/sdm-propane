@@ -95,8 +95,8 @@ def compute_gain_statistics(args, index=None):
             # get the total power on the LP01 and LP11 groups
             Ps_LP01 = Ps_pol[0]
             Ps_LP11 = Ps_pol[1] + Ps_pol[2]
-            gain_LP01 = dB(Ps_LP01 / Ps0[i][0])
-            gain_LP11 = dB(Ps_LP11 / (Ps0[i][1] + Ps0[i][2]))
+            gain_LP01 = dB(Ps_LP01 / Ps0[i])
+            gain_LP11 = dB(Ps_LP11 / (Ps0[i] + Ps0[i]))
             gain_groups = np.stack([gain_LP01, gain_LP11], axis=-1)
             gain_family.append(gain_groups.mean(axis=0))
             std_family.append(gain_groups.std(axis=0))
