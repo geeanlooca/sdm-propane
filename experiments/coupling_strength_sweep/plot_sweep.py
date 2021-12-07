@@ -100,6 +100,17 @@ def compute_gain_statistics(args, index=None):
             gain_groups = np.stack([gain_LP01, gain_LP11], axis=-1)
             gain_family.append(gain_groups.mean(axis=0))
             std_family.append(gain_groups.std(axis=0))
+        elif nmodes == 6:
+            Ps_LP11 = Ps_pol[:, :, 1] + Ps_pol[:, :, 2]
+            gain_LP11 = dB(Ps_LP11 / (Ps0[i] + Ps0[i]))
+
+            Ps_01_02_21 = (
+                Ps_pol[:, :, 0] + Ps_pol[:, :, 3] + Ps_pol[:, :, 4] + Ps_pol[:, :, 5]
+            )
+            gain_01_02_21 = dB(Ps_01_02_21 / (Ps0[i] + Ps0[i] + Ps0[i] + Ps0[i]))
+            gain_groups = np.stack([gain_LP11, gain_01_02_21], axis=-1)
+            gain_family.append(gain_groups.mean(axis=0))
+            std_family.append(gain_groups.std(axis=0))
 
     average_gain = np.stack(average_gain)
     std = np.stack(std)
@@ -208,6 +219,24 @@ dz = z[1] - z[0]
 idx = np.round(args.lengths * 1000 / dz).astype(int)
 actual_lengths = idx * dz / 1000
 
+if mean_family is not None:
+
+    mode_family_labels = ["LP01", "LP11"]
+    if nmodes == 6:
+        mode_family_labels = ["LP11", "LP01 + LP21 + LP02"]
+
+    mode_handles_family = [
+        lines.Line2D(
+            [],
+            [],
+            color=colors[x],
+            marker=markers[x],
+            label=y,
+            fillstyle="none",
+        )
+        for x, y in enumerate(mode_family_labels)
+    ]
+
 FIGSIZE = (8, 7)
 for i, length in zip(idx, actual_lengths):
 
@@ -232,12 +261,14 @@ for i, length in zip(idx, actual_lengths):
 
         axs[1].semilogx(
             Lk,
+            # 100 * std[:, i, m].squeeze() / mean[:, i, m].squeeze(),
             std[:, i, m].squeeze(),
             color=color,
             marker=marker,
             fillstyle="none",
             markersize=6,
         )
+        # axs[1].set_ylabel(r"$\sigma_G$ [\%]")
         axs[1].set_ylabel(r"$\sigma_G$ [dB]")
         axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
     axs[0].legend(
@@ -252,47 +283,51 @@ for i, length in zip(idx, actual_lengths):
         output_file = os.path.join(args.directory, f"plot_{length}km.{ext}")
         plt.savefig(output_file, bbox_inches="tight")
 
-    fig, axs = plt.subplots(
-        nrows=2, sharex=True, num=f"family, {length:.2f}km", figsize=FIGSIZE
-    )
-    for m in range(mean_family.shape[-1]):
-        color = colors[m]
-        marker = markers[m]
-        axs[0].minorticks_on()
-        axs[0].semilogx(
-            Lk,
-            mean_family[:, i, m].squeeze(),
-            color=color,
-            marker=marker,
-            fillstyle="none",
-            markersize=6,
+    if mean_family is not None:
+        fig, axs = plt.subplots(
+            nrows=2, sharex=True, num=f"family, {length:.2f}km", figsize=FIGSIZE
         )
-        plt.minorticks_on()
-        axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
+        for m in range(mean_family.shape[-1]):
+            color = colors[m]
+            marker = markers[m]
+            axs[0].minorticks_on()
+            axs[0].semilogx(
+                Lk,
+                mean_family[:, i, m].squeeze(),
+                color=color,
+                marker=marker,
+                fillstyle="none",
+                markersize=6,
+            )
+            plt.minorticks_on()
+            axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
 
-        axs[1].semilogx(
-            Lk,
-            std_family[:, i, m].squeeze(),
-            color=color,
-            marker=marker,
-            fillstyle="none",
-            markersize=6,
+            axs[1].semilogx(
+                Lk,
+                # 100 * (std_family[:, i, m].squeeze() / mean_family[:, i, m].squeeze()),
+                std_family[:, i, m].squeeze(),
+                color=color,
+                marker=marker,
+                fillstyle="none",
+                markersize=6,
+            )
+            # axs[1].set_ylabel(r"$\sigma_G$ [\%]")
+            axs[1].set_ylabel(r"$\sigma_G$ [dB]")
+            axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
+
+        axs[0].legend(
+            handles=mode_handles_family,
+            ncol=2,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.0),
         )
-        axs[1].set_ylabel(r"$\sigma_G$ [dB]")
-        axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
-    axs[0].legend(
-        handles=mode_handles,
-        ncol=int(nmodes // 2),
-        loc="lower center",
-        bbox_to_anchor=(0.5, 1.0),
-    )
 
-    plt.tight_layout()
+        plt.tight_layout()
 
-    if args.save:
-        ext = "pdf" if args.tex else "png"
-        output_file = os.path.join(args.directory, f"plot_family_{length}km.{ext}")
-        plt.savefig(output_file, bbox_inches="tight")
+        if args.save:
+            ext = "pdf" if args.tex else "png"
+            output_file = os.path.join(args.directory, f"plot_family_{length}km.{ext}")
+            plt.savefig(output_file, bbox_inches="tight")
 
 if not args.save:
     plt.show()
