@@ -115,7 +115,7 @@ def compute_gain_statistics(args, index=None):
     average_gain = np.stack(average_gain)
     std = np.stack(std)
 
-    if nmodes == 3:
+    if nmodes == 3 or nmodes == 6:
         average_gain_family = np.stack(gain_family)
         std_family = np.stack(std_family)
 
