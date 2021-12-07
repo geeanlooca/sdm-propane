@@ -84,7 +84,7 @@ def compute_gain_statistics(args, index=None):
     gain_family = []
     std_family = []
     for i in range(num_files):
-        nmodes = As.shape[-1] // 2
+        nmodes = As[i].shape[-1] // 2
         Ps = np.abs(As[i]) ** 2
         Ps_pol = Ps[:, :, ::2] + Ps[:, :, 1::2]
         gain = dB(Ps_pol / Ps0[i])
@@ -132,7 +132,7 @@ if os.path.isdir(args.directory):
                 average_gain_family=mean_family,
                 std_family=std_family,
             )
-    except:
+    except ValueError:
         z, Lk, mean, std = compute_gain_statistics(args, index=None)
 
         # save arrays in numpy file
