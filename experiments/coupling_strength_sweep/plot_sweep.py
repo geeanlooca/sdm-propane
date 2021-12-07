@@ -261,7 +261,7 @@ for i, length in zip(idx, actual_lengths):
         axs[0].minorticks_on()
         axs[0].semilogx(
             Lk,
-            mean_family[:, -1, m].squeeze(),
+            mean_family[:, i, m].squeeze(),
             color=color,
             marker=marker,
             fillstyle="none",
@@ -272,7 +272,7 @@ for i, length in zip(idx, actual_lengths):
 
         axs[1].semilogx(
             Lk,
-            std_family[:, -1, m].squeeze(),
+            std_family[:, i, m].squeeze(),
             color=color,
             marker=marker,
             fillstyle="none",
