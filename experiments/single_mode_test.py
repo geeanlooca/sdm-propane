@@ -103,7 +103,6 @@ nonlinear_params["bW"] = np.conj(nonlinear_params["bW"])
 thetas = generate_perturbation_angles(correlation_length, dz, fiber_length)
 
 
-propagation_function = raman_linear_coupling.propagate
 propagation_function = raman_linear_coupling_optim.propagate
 
 
@@ -123,20 +122,6 @@ Q1 = nonlinear_params["Q3_s"][0, 0, 0, 0]
 aW = nonlinear_params["aW"]
 bW = nonlinear_params["bW"]
 
-# Q1 = Q1 * np.ones_like(nonlinear_params["Q3_s"])
-
-# nonlinear_params["Q1_p"] *= 0
-# nonlinear_params["Q2_p"] *= 0
-# nonlinear_params["Q3_p"] = Q1
-# nonlinear_params["Q4_p"] = Q1
-# nonlinear_params["Q5_p"] = Q1
-
-# nonlinear_params["Q1_s"] *= 0
-# nonlinear_params["Q2_s"] *= 0
-# nonlinear_params["Q3_s"] = Q1
-# nonlinear_params["Q4_s"] = Q1
-# nonlinear_params["Q5_s"] = Q1
-
 nonlinear_params = nonlinear_params if (args.kerr or args.raman) else None
 
 start = time.perf_counter()
@@ -154,9 +139,10 @@ z, Ap, As = propagation_function(
     thetas,
     nonlinear_params=nonlinear_params,
     undepleted_pump=args.undepleted_pump,
-    signal_coupling=False,
-    pump_coupling=False,
-    filtering_percent=0.00,
+    signal_coupling=True,
+    pump_coupling=True,
+    filtering_percent=0.01,
+    kerr=False,
 )
 end = time.perf_counter()
 print("Time: ", (end - start))

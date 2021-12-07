@@ -60,8 +60,19 @@ parser.add_argument("directory", nargs="?")
 parser.add_argument("-s", "--save", action="store_true")
 parser.add_argument("-S", "--save-data", action="store_true")
 parser.add_argument("-L", "--lengths", nargs="+", type=float)
+parser.add_argument("-t", "--tex", action="store_true")
 
 args = parser.parse_args()
+
+if args.tex:
+    plt.rcParams.update(
+        {
+            "text.latex.preamble": r"\usepackage{mathpazo}",
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": ["palatino"],
+        }
+    )
 
 
 def compute_gain_statistics(args, index=None):
@@ -69,26 +80,72 @@ def compute_gain_statistics(args, index=None):
     num_files = len(As)
     std = []
     average_gain = []
+
+    gain_family = []
+    std_family = []
     for i in range(num_files):
+        nmodes = As.shape[-1] // 2
         Ps = np.abs(As[i]) ** 2
         Ps_pol = Ps[:, :, ::2] + Ps[:, :, 1::2]
         gain = dB(Ps_pol / Ps0[i])
         average_gain.append(gain.mean(axis=0))
         std.append(gain.std(axis=0))
 
+        if nmodes == 3:
+            # get the total power on the LP01 and LP11 groups
+            Ps_LP01 = Ps_pol[0]
+            Ps_LP11 = Ps_pol[1] + Ps_pol[2]
+            gain_LP01 = dB(Ps_LP01 / Ps0[i][0])
+            gain_LP11 = dB(Ps_LP11 / (Ps0[i][1] + Ps0[i][2]))
+            gain_groups = np.stack([gain_LP01, gain_LP11], axis=-1)
+            gain_family.append(gain_groups.mean(axis=0))
+            std_family.append(gain_groups.std(axis=0))
+
     average_gain = np.stack(average_gain)
     std = np.stack(std)
-    return z, Lk, average_gain, std
+
+    if nmodes == 3:
+        average_gain_family = np.stack(gain_family)
+        std_family = np.stack(std_family)
+
+        return z, Lk, average_gain, std, average_gain_family, std_family
+    else:
+        return z, Lk, average_gain, std
 
 
 # check if passed parameter is a directory
 if os.path.isdir(args.directory):
-    z, Lk, mean, std = compute_gain_statistics(args, index=None)
 
-    # save arrays in numpy file
-    if args.save_data:
-        data_file = os.path.join(args.directory, "data.npz")
-        np.savez(data_file, z=z, Lk=Lk, average_gain=mean, std=std)
+    try:
+        z, Lk, mean, std, mean_family, std_family = compute_gain_statistics(
+            args, index=None
+        )
+        # save arrays in numpy file
+        if args.save_data:
+            data_file = os.path.join(args.directory, "data.npz")
+            np.savez(
+                data_file,
+                z=z,
+                Lk=Lk,
+                average_gain=mean,
+                std=std,
+                average_gain_family=mean_family,
+                std_family=std_family,
+            )
+    except:
+        z, Lk, mean, std = compute_gain_statistics(args, index=None)
+
+        # save arrays in numpy file
+        if args.save_data:
+            data_file = os.path.join(args.directory, "data.npz")
+            np.savez(
+                data_file,
+                z=z,
+                Lk=Lk,
+                average_gain=mean,
+                std=std,
+            )
+
 else:
     # read from npz data file
     data = np.load(args.directory)
@@ -98,6 +155,13 @@ else:
     Lk = data["Lk"]
     mean = data["average_gain"]
     std = data["std"]
+
+    try:
+        mean_family = data["average_gain_family"]
+        std_family = data["std_family"]
+    except KeyError:
+        mean_family = None
+        std_family = None
 
 
 def get_mode_names(num_modes):
@@ -112,7 +176,7 @@ def get_mode_names(num_modes):
 
 
 def get_markers(num_modes):
-    markers = ["o", "s", "x", "^", ".", "*", "D", ">", "<"]
+    markers = ["o", "s", "x", "^", ".", "D", "*", ">", "<"]
     return markers[:num_modes]
 
 
@@ -122,7 +186,14 @@ markers = get_markers(nmodes)
 colors = [f"C{m}" for m in range(nmodes)]
 
 mode_handles = [
-    lines.Line2D([], [], color=colors[x], marker=markers[x], label=mode_labels[x])
+    lines.Line2D(
+        [],
+        [],
+        color=colors[x],
+        marker=markers[x],
+        label=mode_labels[x],
+        fillstyle="none",
+    )
     for x in range(nmodes)
 ]
 
@@ -137,29 +208,91 @@ dz = z[1] - z[0]
 idx = np.round(args.lengths * 1000 / dz).astype(int)
 actual_lengths = idx * dz / 1000
 
-
+FIGSIZE = (8, 7)
 for i, length in zip(idx, actual_lengths):
 
-    fig, axs = plt.subplots(nrows=2, sharex=True, num=f"{length:.2f}km")
+    plt.minorticks_on()
+    fig, axs = plt.subplots(
+        nrows=2, sharex=True, num=f"{length:.2f}km", figsize=FIGSIZE
+    )
     for m in range(nmodes):
         color = colors[m]
         marker = markers[m]
+        axs[0].minorticks_on()
         axs[0].semilogx(
-            Lk, mean[:, i, m].squeeze(), color=color, marker=marker, fillstyle="none"
+            Lk,
+            mean[:, i, m].squeeze(),
+            color=color,
+            marker=marker,
+            fillstyle="none",
+            markersize=6,
         )
+        plt.minorticks_on()
         axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
 
         axs[1].semilogx(
-            Lk, std[:, i, m].squeeze(), color=color, marker=marker, fillstyle="none"
+            Lk,
+            std[:, i, m].squeeze(),
+            color=color,
+            marker=marker,
+            fillstyle="none",
+            markersize=6,
         )
         axs[1].set_ylabel(r"$\sigma_G$ [dB]")
         axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
-    axs[0].legend(handles=mode_handles)
+    axs[0].legend(
+        handles=mode_handles,
+        ncol=int(nmodes // 2),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.0),
+    )
+
+    if args.save:
+        ext = "pdf" if args.tex else "png"
+        output_file = os.path.join(args.directory, f"plot_{length}km.{ext}")
+        plt.savefig(output_file, bbox_inches="tight")
+
+    fig, axs = plt.subplots(
+        nrows=2, sharex=True, num=f"family, {length:.2f}km", figsize=FIGSIZE
+    )
+    for m in range(mean_family.shape[-1]):
+        color = colors[m]
+        marker = markers[m]
+        axs[0].minorticks_on()
+        axs[0].semilogx(
+            Lk,
+            mean_family[:, i, m].squeeze(),
+            color=color,
+            marker=marker,
+            fillstyle="none",
+            markersize=6,
+        )
+        plt.minorticks_on()
+        axs[0].set_ylabel(r"$\langle G \rangle$ [dB]")
+
+        axs[1].semilogx(
+            Lk,
+            std_family[:, i, m].squeeze(),
+            color=color,
+            marker=marker,
+            fillstyle="none",
+            markersize=6,
+        )
+        axs[1].set_ylabel(r"$\sigma_G$ [dB]")
+        axs[1].set_xlabel(r"$L_{\kappa}$ [m]")
+    axs[0].legend(
+        handles=mode_handles,
+        ncol=int(nmodes // 2),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.0),
+    )
+
     plt.tight_layout()
 
     if args.save:
-        output_file = os.path.join(args.directory, f"plot_{length}km.png")
-        plt.savefig(output_file, dpi=500)
+        ext = "pdf" if args.tex else "png"
+        output_file = os.path.join(args.directory, f"plot_family_{length}km.{ext}")
+        plt.savefig(output_file, bbox_inches="tight")
 
 if not args.save:
     plt.show()

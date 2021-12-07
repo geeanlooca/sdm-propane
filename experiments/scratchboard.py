@@ -112,11 +112,12 @@ indices_p = fiber.group_azimuthal_orders(wavelength=pump_wavelength)
 num_modes_s = fiber.num_modes(signal_wavelength)
 num_modes_p = fiber.num_modes(pump_wavelength)
 
-Pp0 = args.power * 1e-3
+
+Pp0 = args.power * 1e-3 / (num_modes_p / 2)
 Ps0 = args.signal_power
 Ap0 = np.zeros((num_modes_p,)).astype("complex128")
 As0 = np.zeros((num_modes_s,)).astype("complex128")
-Ap0[2::2] = np.sqrt(Pp0)
+Ap0[0::2] = np.sqrt(Pp0)
 As0[0::2] = np.sqrt(Ps0)
 
 pump_attenuation = 0.2 * 1e-3 * np.log(10) / 10
