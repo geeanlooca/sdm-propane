@@ -93,8 +93,8 @@ def compute_gain_statistics(args, index=None):
 
         if nmodes == 3:
             # get the total power on the LP01 and LP11 groups
-            Ps_LP01 = Ps_pol[0]
-            Ps_LP11 = Ps_pol[1] + Ps_pol[2]
+            Ps_LP01 = Ps_pol[:, :, 0]
+            Ps_LP11 = Ps_pol[:, :, 1] + Ps_pol[:, :, 2]
             gain_LP01 = dB(Ps_LP01 / Ps0[i])
             gain_LP11 = dB(Ps_LP11 / (Ps0[i] + Ps0[i]))
             gain_groups = np.stack([gain_LP01, gain_LP11], axis=-1)
@@ -261,7 +261,7 @@ for i, length in zip(idx, actual_lengths):
         axs[0].minorticks_on()
         axs[0].semilogx(
             Lk,
-            mean_family[:, i, m].squeeze(),
+            mean_family[:, -1, m].squeeze(),
             color=color,
             marker=marker,
             fillstyle="none",
@@ -272,7 +272,7 @@ for i, length in zip(idx, actual_lengths):
 
         axs[1].semilogx(
             Lk,
-            std_family[:, i, m].squeeze(),
+            std_family[:, -1, m].squeeze(),
             color=color,
             marker=marker,
             fillstyle="none",
