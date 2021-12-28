@@ -88,7 +88,7 @@ def compute_gain_statistics(args, index=None):
         gain = Ps_pol / Ps0[i]
         average_gain.append(dB(gain.mean(axis=0)))
 
-        std_ = np.sqrt(np.mean(Ps_pol ** 2, axis=0) / Ps_pol ** 2 - 1)
+        std_ = np.sqrt(np.mean(Ps_pol ** 2, axis=0) / np.mean(Ps_pol, axis=0) ** 2 - 1)
         std.append(std_)
 
         if nmodes == 3:
@@ -100,8 +100,12 @@ def compute_gain_statistics(args, index=None):
             gain_groups = np.stack([(gain_LP01), (gain_LP11)], axis=-1)
             gain_family.append(dB(gain_groups.mean(axis=0)))
 
-            std_01 = np.sqrt(np.mean(Ps_LP01 ** 2, axis=0) / Ps_LP01 ** 2 - 1)
-            std_11 = np.sqrt(np.mean(Ps_LP11 ** 2, axis=0) / (Ps_LP11) ** 2 - 1)
+            std_01 = np.sqrt(
+                np.mean(Ps_LP01 ** 2, axis=0) / np.mean(Ps_LP01, axis=0) ** 2 - 1
+            )
+            std_11 = np.sqrt(
+                np.mean(Ps_LP11 ** 2, axis=0) / np.mean(Ps_LP11, axis=0) ** 2 - 1
+            )
 
             std_family.append(np.stack([std_01, std_11], axis=-1))
 
@@ -116,9 +120,12 @@ def compute_gain_statistics(args, index=None):
             gain_groups = np.stack([gain_LP11, gain_01_02_21], axis=-1)
             gain_family.append(dB(gain_groups.mean(axis=0)))
 
-            std_11 = np.sqrt(np.mean(Ps_LP11 ** 2, axis=0) / (Ps_LP11) ** 2 - 1)
+            std_11 = np.sqrt(
+                np.mean(Ps_LP11 ** 2, axis=0) / np.mean(Ps_LP11, axis=0) ** 2 - 1
+            )
             std_01_02_21 = np.sqrt(
-                np.mean(Ps_01_02_21 ** 2, axis=0) / (Ps_01_02_21) ** 2 - 1
+                np.mean(Ps_01_02_21 ** 2, axis=0) / np.mean(Ps_01_02_21, axis=0) ** 2
+                - 1
             )
 
             std_family.append(np.stack([std_11, std_01_02_21], axis=-1))
