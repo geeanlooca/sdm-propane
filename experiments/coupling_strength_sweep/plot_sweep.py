@@ -89,7 +89,7 @@ def compute_gain_statistics(args, index=None):
         average_gain.append(dB(gain.mean(axis=0)))
 
         std_ = np.sqrt(np.mean(Ps_pol ** 2, axis=0) / Ps0[i] ** 2 - 1)
-        std.append(std)
+        std.append(std_)
 
         if nmodes == 3:
             # get the total power on the LP01 and LP11 groups
