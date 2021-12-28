@@ -11,8 +11,6 @@ import matplotlib.lines as lines
 from read_data import read_data
 import tqdm
 
-import polarization
-
 
 def find_files(args):
     filenames = os.listdir(args.directory)
@@ -87,30 +85,45 @@ def compute_gain_statistics(args, index=None):
         nmodes = As[i].shape[-1] // 2
         Ps = np.abs(As[i]) ** 2
         Ps_pol = Ps[:, :, ::2] + Ps[:, :, 1::2]
-        gain = dB(Ps_pol / Ps0[i])
-        average_gain.append(gain.mean(axis=0))
-        std.append(gain.std(axis=0))
+        gain = Ps_pol / Ps0[i]
+        average_gain.append(dB(gain.mean(axis=0)))
+
+        std_ = np.sqrt(np.mean(Ps_pol ** 2, axis=0) / Ps0[i] ** 2 - 1)
+        std.append(std)
 
         if nmodes == 3:
             # get the total power on the LP01 and LP11 groups
             Ps_LP01 = Ps_pol[:, :, 0]
             Ps_LP11 = Ps_pol[:, :, 1] + Ps_pol[:, :, 2]
-            gain_LP01 = dB(Ps_LP01 / Ps0[i])
-            gain_LP11 = dB(Ps_LP11 / (Ps0[i] + Ps0[i]))
-            gain_groups = np.stack([gain_LP01, gain_LP11], axis=-1)
-            gain_family.append(gain_groups.mean(axis=0))
-            std_family.append(gain_groups.std(axis=0))
+            gain_LP01 = Ps_LP01 / Ps0[i]
+            gain_LP11 = Ps_LP11 / (Ps0[i] + Ps0[i])
+            gain_groups = np.stack([(gain_LP01), (gain_LP11)], axis=-1)
+            gain_family.append(dB(gain_groups.mean(axis=0)))
+
+            std_01 = np.sqrt(np.mean(Ps_LP01 ** 2, axis=0) / Ps0[i] ** 2 - 1)
+            std_11 = np.sqrt(np.mean(Ps_LP11 ** 2, axis=0) / (2 * Ps0[i]) ** 2 - 1)
+
+            std_family.append(np.stack([std_01, std_11], axis=-1))
+
         elif nmodes == 6:
             Ps_LP11 = Ps_pol[:, :, 1] + Ps_pol[:, :, 2]
-            gain_LP11 = dB(Ps_LP11 / (Ps0[i] + Ps0[i]))
+            gain_LP11 = Ps_LP11 / (Ps0[i] + Ps0[i])
 
             Ps_01_02_21 = (
                 Ps_pol[:, :, 0] + Ps_pol[:, :, 3] + Ps_pol[:, :, 4] + Ps_pol[:, :, 5]
             )
-            gain_01_02_21 = dB(Ps_01_02_21 / (Ps0[i] + Ps0[i] + Ps0[i] + Ps0[i]))
+            gain_01_02_21 = Ps_01_02_21 / (Ps0[i] + Ps0[i] + Ps0[i] + Ps0[i])
             gain_groups = np.stack([gain_LP11, gain_01_02_21], axis=-1)
-            gain_family.append(gain_groups.mean(axis=0))
-            std_family.append(gain_groups.std(axis=0))
+            gain_family.append(dB(gain_groups.mean(axis=0)))
+
+            std_11 = np.sqrt(np.mean(Ps_LP11 ** 2, axis=0) / (2 * Ps0[i]) ** 2 - 1)
+            std_01_02_21 = np.sqrt(
+                np.mean(Ps_01_02_21 ** 2, axis=0)
+                / (Ps0[i] + Ps0[i] + Ps0[i] + Ps0[i]) ** 2
+                - 1
+            )
+
+            std_family.append(np.stack([std_11, std_01_02_21], axis=-1))
 
     average_gain = np.stack(average_gain)
     std = np.stack(std)
@@ -261,7 +274,7 @@ for i, length in zip(idx, actual_lengths):
 
         axs[1].semilogx(
             Lk,
-            # 100 * std[:, i, m].squeeze() / mean[:, i, m].squeeze(),
+            100 * std[:, i, m].squeeze(),
             std[:, i, m].squeeze(),
             color=color,
             marker=marker,
@@ -304,7 +317,7 @@ for i, length in zip(idx, actual_lengths):
 
             axs[1].semilogx(
                 Lk,
-                # 100 * (std_family[:, i, m].squeeze() / mean_family[:, i, m].squeeze()),
+                100 * std_family[:, i, m].squeeze(),
                 std_family[:, i, m].squeeze(),
                 color=color,
                 marker=marker,
